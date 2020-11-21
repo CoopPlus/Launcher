@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<StyleFile>
+    <Style
+        name="STContextMenu" template="HeaderTemplate" font="#FontHeader" height="24" styleflags="Shadow"
+        textcolor="5A95B7" vjustify="Middle" hjustify="Left" hotkeycolor="#ColorWhite" highlightcolor="#ColorWhite"
+    />
+
+    <Style
+        name="CoopPlus_GameSetup_Title" font="#FontHeaderExtended" height="30" vjustify="Middle"
+        hjustify="Center" styleflags="Shadow | TightGradient | HintingAuto" textcolor="255,255,255,255"
+        highlightcolor="255,0,0,0" disabledcolor="255,0,0,0" hotkeycolor="255,0,0,0" hyperlinkcolor="255,0,0,0"
+        glowcolor="255,0,0,0" shadowoffset="2" outlinewidth="0"
+    />
+    <Style
+        name="CoopPlus_GameSetup_Content" font="#FontStandard" height="30" vjustify="Middle"
+        hjustify="Center" styleflags="Shadow | TightGradient | HintingAuto" textcolor="255,255,255,255"
+        highlightcolor="255,0,0,0" disabledcolor="255,0,0,0" hotkeycolor="255,0,0,0" hyperlinkcolor="255,0,0,0"
+        glowcolor="255,0,0,0" shadowoffset="2" outlinewidth="0"
+    />
+    <Style
+        name="CoopPlus_GameSetup_ContentSmall" template="CoopPlus_GameSetup_Content" height="24"
+    />
+
+    <Style
+        name="CoopPlus_CommanderLevel" template="Coop_CommanderLevel" height="42"
+    />
+    <Style
+        name="CoopPlus_CustomizeButton" template="Coop_CommanderLevel" height="18"
+    />
+    <Style
+        name="CoopPlus_PlayerNameLhs" font="#FontHeaderExtended" height="60" vjustify="Middle"
+        hjustify="Left" styleflags="Shadow | Glow" textcolor="ffff99"
+        highlightcolor="255,0,0,0" disabledcolor="255,0,0,0" hotkeycolor="255,0,0,0" hyperlinkcolor="255,0,0,0"
+        glowcolor="0062ee" shadowoffset="2" outlinewidth="0"
+    />
+    <Style
+        name="CoopPlus_PlayerSubLhs" font="#FontHeaderExtended" height="30" vjustify="Middle"
+        hjustify="Left" styleflags="Shadow | TightGradient | HintingAuto" textcolor="255,210,210,255"
+        highlightcolor="255,0,0,0" disabledcolor="255,0,0,0" hotkeycolor="255,0,0,0" hyperlinkcolor="255,0,0,0"
+        glowcolor="255,0,0,0" shadowoffset="2" outlinewidth="0"
+    />
+    <Style
+        name="CoopPlus_PlayerNameRhs" template="CoopPlus_PlayerNameLhs" hjustify="Right" textcolor="ff99ff"
+    />
+    <Style
+        name="CoopPlus_PlayerSubRhs" template="CoopPlus_PlayerSubLhs" hjustify="Right"
+    />
+</StyleFile>

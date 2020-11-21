@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Preload>
+<Asset path="cutscenes\ui_screens_alliedcommander_foreground_mirrored.sc2cutscene" Type="Cutscene"/>
+<Asset path="cutscenes\ui_screens_alliedcommander_foreground.sc2cutscene" Type="Cutscene"/>
+<Asset path="assets\units\test\sphere\sphere.m3" Type="Model"/>
+<Actor id="SYSTEM_ActorConfig"/>
+</Preload>

@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<Desc>
+    <Frame type="Image" name="StandardContextMenuFrame">
+        <Texture val="@UI/StandardGameTooltip"/>
+        <TextureType val="Border"/>
+        <Tiled val="true"/>
+        <DescFlags val="Internal"/>
+    </Frame>
+
+    <Frame type="Image" name="StandardPulldownMenuSelected">
+        <Texture val="@UI/StandardPulldownMenuSelected"/>
+        <TextureType val="Nineslice"/>
+        <Tiled val="true"/>
+        <DescFlags val="Internal"/>
+    </Frame>
+
+    <Frame type="Image" name="StandardPulldownMenuHover">
+        <Texture val="@UI/StandardPulldownMenuHover"/>
+        <TextureType val="Nineslice"/>
+        <Alpha val="255"/>
+        <Tiled val="true"/>
+        <DescFlags val="Internal"/>
+    </Frame>
+
+    <Frame type="ScrollBar" name="StandardScrollBarTemplate">
+        <Image val="$root/StandardTemplates/StandardScrollBarBackgroundImage"/>
+        <Button val="$root/StandardTemplates/StandardScrollBarButtonTemplate"/>
+        <Orientation val="Vertical"/>
+        <Width val="24"/>
+        <IncrementSound val="@UI_ScrollButtonSelect"/>
+        <DescFlags val="Internal"/>
+    </Frame>
+    
+    <Frame type="Frame" name="STContextMenuTemplate">
+        <RenderPriority val="700"/>
+        <Anchor relative="$parent"/>
+
+        <Frame type="Button" name="Background">
+            <Anchor relative="$parent"/>
+            <AcceptsMouse val="True"/>
+            <AllowedButtons val="Left|Right"/>
+            <Frame type="Image" name="Coloring">
+                <Anchor relative="$parent"/>
+                <Color val="0,0,0"/>
+                <Alpha val="128"/>
+            </Frame>
+        </Frame>
+
+        <Frame type="Frame" name="PositionSetter"/>
+
+        <Frame type="ListBox" name="Menu">
+            <Anchor side="Top" relative="$parent/PositionSetter" pos="Min" offset="0"/>
+            <Anchor side="Left" relative="$parent/PositionSetter" pos="Min" offset="0"/>
+            <Anchor side="Right" relative="WidthSetter" pos="Max" offset="250"/>
+            <Anchor side="Bottom" relative="HeightSetter" pos="Max" offset="0"/>
+            <Height val="400"/>
+
+            <!-- XREF: CP_ContextMenu(): height -->
+            <ItemHeight val="36"/>
+            <Insets top="8" left="14" bottom="8" right="22"/>
+
+            <HighlightInsets top="0" left="0" bottom="0" right="0"/>
+            <Style val="STContextMenu"/>
+            <BackgroundImage val="PulldownMenuBackground"/>
+            <SelectedImage val="PulldownMenuSelected"/>
+            <HoverImage val="PulldownMenuHover"/>
+            <ScrollBar val="PulldownMenuScrollBar"/>
+            <HighlightOnHover val="true"/>
+            <ItemClickSound val="@UI_DropdownListSelect"/>
+
+            <Frame type="Image" name="PulldownMenuBackground" template="STContextMenu/StandardContextMenuFrame" />
+            <Frame type="Image" name="PulldownMenuSelected" template="STContextMenu/StandardPulldownMenuSelected" />
+            <Frame type="Image" name="PulldownMenuHover" template="STContextMenu/StandardPulldownMenuHover" />
+            <Frame type="ScrollBar" name="PulldownMenuScrollBar" template="STContextMenu/StandardScrollBarTemplate" />
+
+            <Frame type="Label" name="WidthSetter">
+                <Anchor side="Top" relative="$parent" pos="Min" offset="0"/>
+                <Anchor side="Left" relative="$parent" pos="Min" offset="0"/>
+                <Style val="STContextMenu"/>
+                <Visible val="false"/>
+            </Frame>
+            <Frame type="Frame" name="HeightSetter">
+                <Anchor side="Top" relative="$parent" pos="Min" offset="0"/>
+                <Anchor side="Left" relative="$parent" pos="Min" offset="0"/>
+                <Visible val="false"/>
+            </Frame>
+        </Frame>
+    </Frame>
+</Desc>

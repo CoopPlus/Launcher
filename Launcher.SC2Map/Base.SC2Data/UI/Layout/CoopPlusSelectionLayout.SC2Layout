@@ -1,0 +1,1697 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<Desc>
+    <Frame type="Frame" name="IntentionArrowImageTemplate">
+        <Frame type="Image" name="Arrow">
+            <Anchor relative="$parent"/>
+            <Rotation val="180"/>
+            <Alpha val="100"/>
+            <Texture val="Assets/Textures/sc2_ui_ingame_replay_effect_arrow.dds"/>
+        </Frame>
+
+        <Frame type="Image" name="Arrow_Highlight">
+            <Anchor relative="$parent"/>
+            <Rotation val="{$parent/Arrow/@Rotation}"/>
+            <Texture val="Assets/Textures/sc2_ui_ingame_replay_effect_arrow_highlight.dds"/>
+
+            <Animation name="StaticAnim">
+                <Event event="OnShown" frame="$parent" action="Reset,Play"/>
+
+                <Controller type="Fade" end="Loop">
+                    <Key type="Curve" time="0" value="0" out="Fast"/>
+                    <Key type="Curve" time="1" value="0" in="Slow"/>
+                    <Key type="Curve" time="1.1" value="70" in="Slow"/>
+                    <Key type="Curve" time="1.2" value="0" out="Fast"/>
+                </Controller>
+            </Animation>
+        </Frame>
+    </Frame>
+
+    <Frame type="Frame" name="CommanderSelectionArrowImageTopTemplate">
+        <Frame type="Image" name="Arrow1">
+            <Anchor relative="$parent"/>
+
+            <TextureCoordRotation val="90"/>
+            <Alpha val="180"/>
+            <Texture val="Assets/Textures/sc2_ui_ingame_replay_effect_arrow.dds"/>
+            <Color val="255,255,255,0"/>
+        </Frame>
+
+        <Frame type="Image" name="Arrow1_Highlight">
+            <Anchor relative="$parent/Arrow1"/>
+
+            <TextureCoordRotation val="{$parent/Arrow1/@TextureCoordRotation}"/>
+            <Texture val="Assets/Textures/sc2_ui_ingame_replay_effect_arrow_highlight.dds"/>
+            <Color val="{$parent/Arrow1/@Color}"/>
+
+            <Animation name="StaticAnim">
+                <Event event="OnShown" frame="$parent" action="Reset,Play"/>
+
+                <Controller type="Fade" end="Loop">
+                    <Key type="Curve" time="0" value="120"/>
+                    <Key type="Curve" time="0.8" value="120"/>
+                    <Key type="Curve" time="0.9" value="0"/>
+                    <Key type="Curve" time="1" value="120"/>
+                </Controller>
+            </Animation>
+        </Frame>
+    </Frame>
+
+    <Frame type="Frame" name="CommanderSelectionArrowImageBottomTemplate" template="CoopPlusSelectionLayout/CommanderSelectionArrowImageTopTemplate">
+        <Frame type="Image" name="Arrow1">
+            <Anchor relative="$parent"/>
+
+            <TextureCoordRotation val="270"/>
+            <Color val="255,255,0,255"/>
+        </Frame>
+    </Frame>
+
+    <Frame type="Button" name="AlternateButtonTemplate">
+        <DisplayType val="ImageLayer"/>
+        <ClickSound val="@UI_ActionButtonSelect"/>
+        <Style val="@StandardButtonAlternate"/>
+        <Width val="288"/>
+        <Height val="76"/>
+        <HoverSound val="@UI_HoverTick"/>
+                
+        <Frame type="Image" name="NormalImage">
+            <Anchor side="Top" relative="$parent" pos="Min" offset="0"/>
+            <Anchor side="Bottom" relative="$parent" pos="Max" offset="0"/>
+            <Anchor side="Left" relative="$parent" pos="Min" offset="0"/>
+            <Anchor side="Right" relative="$parent" pos="Max" offset="0"/>
+            <StateCount val="1"/>
+            <LayerCount val="4"/>
+            <Texture val="@UI/Glues_Battlenet_AlternateButton_Normal" layer="0"/>
+            <Texture val="@UI/Glues_Battlenet_AlternateButton_Down" layer="1"/>
+            <Texture val="@UI/Glues_Battlenet_AlternateButton_Selected" layer="2"/>
+            <Texture val="@UI/Glues_Battlenet_AlternateButton_Disabled" layer="3"/>
+            <TextureType val="EndCap" layer="0"/>
+            <TextureType val="EndCap" layer="1"/>
+            <TextureType val="EndCap" layer="2"/>
+            <TextureType val="EndCap" layer="3"/>
+            <Tiled val="false"/>
+            <DesaturateOnDisable val="false"/>
+        </Frame>
+
+        <Frame type="Image" name="HoverImage">
+            <Anchor side="Top" relative="$parent" pos="Min" offset="0"/>
+            <Anchor side="Bottom" relative="$parent" pos="Max" offset="0"/>
+            <Anchor side="Left" relative="$parent" pos="Min" offset="0"/>
+            <Anchor side="Right" relative="$parent" pos="Max" offset="0"/>
+            <StateCount val="1"/>
+            <LayerCount val="4"/>
+            <Texture val="@UI/Glues_Battlenet_AlternateButton_Hover" layer="0"/>
+            <Texture val="@UI/Glues_Battlenet_AlternateButton_Down" layer="1"/>
+            <Texture val="@UI/Glues_Battlenet_AlternateButton_Selected" layer="2"/>
+            <Texture val="@UI/Glues_Battlenet_AlternateButton_Disabled" layer="3"/>
+            <TextureType val="EndCap" layer="0"/>
+            <TextureType val="EndCap" layer="1"/>
+            <TextureType val="EndCap" layer="2"/>
+            <TextureType val="EndCap" layer="3"/>
+            <Tiled val="false"/>
+            <DesaturateOnDisable val="false"/>
+        </Frame>
+
+        <Frame type="Label" name="Label">
+            <Anchor side="Top" relative="$parent" pos="Min" offset="3"/>
+            <Anchor side="Bottom" relative="$parent" pos="Max" offset="0"/>
+            <Anchor side="Left" relative="$parent" pos="Min" offset="20"/>
+            <Anchor side="Right" relative="$parent" pos="Max" offset="-20"/>
+            <Style val="BattlenetAlternateButton"/>
+        </Frame>
+
+        <Frame type="Frame" name="HitTestFrame">
+            <Anchor side="Top" relative="$parent" pos="Min" offset="0"/>
+            <Anchor side="Bottom" relative="$parent" pos="Max" offset="0"/>
+            <Anchor side="Left" relative="$parent" pos="Min" offset="0"/>
+            <Anchor side="Right" relative="$parent" pos="Max" offset="0"/>
+        </Frame>
+    </Frame>
+
+    <Frame type="Button" name="CommanderSelectionButtonTemplate">
+        <Width val="105"/>
+        <Height val="126"/>
+        <AllowedButtons val="Left|Right"/>
+        
+        <Frame type="Image" name="Portrait">
+            <Anchor relative="$parent" side="Top" pos="Min" offset="10"/>
+            <Anchor relative="$parent" side="Bottom" pos="Max" offset="-10"/>
+            <Anchor relative="$parent" side="Left" pos="Min" offset="10"/>
+            <Anchor relative="$parent" side="Right" pos="Max" offset="-10"/>
+            <DesaturateOnDisable val="false"/>
+            <Texture val=""/>
+        </Frame>
+        
+        <Frame type="Image" name="Border">
+            <Anchor relative="$parent"/>
+            <Texture val="@UI/SC2_UI_Coop_SelectTile_Basic_Selected"/>
+            <TextureType val="Nineslice"/>
+        </Frame>
+
+        <Frame type="Frame" name="MySelectionArrow" template="CoopPlusSelectionLayout/CommanderSelectionArrowImageTopTemplate">
+            <Anchor relative="$parent" side="Top" pos="Min" offset="-25"/>
+            <Anchor relative="$parent" side="Bottom" pos="Min" offset="8"/>
+            <Anchor relative="$parent" side="Left" pos="Min" offset="20"/>
+            <Anchor relative="$parent" side="Right" pos="Max" offset="-20"/>
+            <Unclipped val="true"/>
+        </Frame>
+
+        <Frame type="Frame" name="TheirSelectionArrow" template="CoopPlusSelectionLayout/CommanderSelectionArrowImageBottomTemplate">
+            <Anchor relative="$parent" side="Top" pos="Max" offset="-8"/>
+            <Anchor relative="$parent" side="Bottom" pos="Max" offset="25"/>
+            <Anchor relative="$parent" side="Left" pos="Min" offset="20"/>
+            <Anchor relative="$parent" side="Right" pos="Max" offset="-20"/>
+            <Unclipped val="true"/>
+        </Frame>
+
+        <Frame type="Image" name="VetoSign">
+            <Anchor relative="$parent" side="Top" pos="Mid" offset="-60"/>
+            <Anchor relative="$parent" side="Bottom" pos="Mid" offset="60"/>
+            <Anchor relative="$parent" side="Left" pos="Mid" offset="-60"/>
+            <Anchor relative="$parent" side="Right" pos="Mid" offset="60"/>
+
+            <Texture val="Assets\Textures\btn-command-cancel.dds"/>
+            <Color val="255,0,0"/>
+        </Frame>        
+        
+        <StateGroup name="MySelectionState">
+            <DefaultState val="Unselected"/>
+            
+            <State name="Selected">
+                <When type="AnimationState" MySelectionState="Selected"/>
+                <Action type="SetProperty" frame="MySelectionArrow" visible="true"/>
+                <Action type="SetProperty" frame="VetoSign" visible="false"/>
+            </State>
+            
+            <State name="Veto">
+                <When type="AnimationState" MySelectionState="Veto"/>
+                <Action type="SetProperty" frame="MySelectionArrow" visible="false"/>
+                <Action type="SetProperty" frame="VetoSign" visible="true"/>
+            </State>
+            
+            <State name="Unselected">
+                <Action type="SetProperty" frame="MySelectionArrow" visible="false"/>
+                <Action type="SetProperty" frame="VetoSign" visible="false"/>
+            </State>
+        </StateGroup>
+
+        <StateGroup name="TheirSelectionState">
+            <DefaultState val="Unselected"/>
+            
+            <State name="Selected">
+                <When type="AnimationState" TheirSelectionState="Selected"/>
+                <Action type="SetProperty" frame="TheirSelectionArrow" visible="true"/>
+            </State>
+            
+            <State name="Unselected">
+                <Action type="SetProperty" frame="TheirSelectionArrow" visible="false"/>
+            </State>
+        </StateGroup>
+
+        <StateGroup name="PlayerState">
+            <DefaultState val="PlayerLhs"/>
+            
+            <State name="PlayerRhs">
+                <When type="AnimationState" PlayerState="PlayerRhs"/>
+                <Action type="SetProperty" frame="MySelectionArrow/Arrow1" color="255,255,0,255"/>
+                <Action type="SetProperty" frame="TheirSelectionArrow/Arrow1" color="255,255,255,0"/>
+            </State>
+            
+            <State name="PlayerLhs">
+                <Action type="SetProperty" frame="MySelectionArrow/Arrow1" color="255,255,255,0"/>
+                <Action type="SetProperty" frame="TheirSelectionArrow/Arrow1" color="255,255,0,255"/>
+            </State>
+        </StateGroup>
+    </Frame>
+
+    <Frame type="CutsceneFrame" name="BackgroundCutsceneTemplate">
+        <RenderType val="HDR"/>
+        <File val="Cutscenes/UI_Screens_AlliedCommander_Background.SC2Cutscene"/>
+        
+        <Animation name="Show">
+            <Event event="OnShown" action="Reset,Play"/>
+            
+            <Controller type="Cutscene" end="Loop">
+                <Key type="Cutscene" action="Play" time="0.0"/>
+            </Controller>
+        </Animation>
+        
+        <Animation name="SetStandardBackground">
+            <Event event="ModeStandard" action="Reset,Play"/>
+            
+            <Controller type="Cutscene" end="Pause">
+                <Key type="Cutscene" time="0" action="SetCutscene" file="Cutscenes/UI_Screens_AlliedCommander_Background.SC2Cutscene"/>
+                <Key type="Cutscene" time="0.0" action="Play"/>
+            </Controller>
+        </Animation>
+
+        <Animation name="SetBrutalPlusBackground">
+            <Event event="ModeBrutalPlus" action="Reset,Play"/>
+            
+            <Controller type="Cutscene" end="Pause">
+                <Key type="Cutscene" time="0" action="SetCutscene" file="Cutscenes/UI_Screens_CollectionsBG.SC2Cutscene"/>
+                <Key type="Cutscene" time="0.0" action="Play"/>
+            </Controller>
+        </Animation>
+        
+        <Animation name="SetMutatorBackground">
+            <Event event="ModeMutator" action="Reset,Play"/>
+            
+            <Controller type="Cutscene" end="Pause">
+                <Key type="Cutscene" time="0" action="SetCutscene" file="Cutscenes/UI_Screens_AlliedCommander_Mutators_Background.SC2Cutscene"/>
+                <Key type="Cutscene" time="0.0" action="Play"/>
+            </Controller>
+        </Animation>
+        
+        <Animation name="SetCustomBackground">
+            <Event event="ModeCustom" action="Reset,Play"/>
+            
+            <Controller type="Cutscene" end="Pause">
+                <Key type="Cutscene" time="0" action="SetCutscene" file="Cutscenes/UI_Screens_AlliedCommander_CustomMutators_Background.SC2Cutscene"/>
+                <Key type="Cutscene" time="0.0" action="Play"/>
+            </Controller>
+        </Animation>
+    </Frame>
+
+    <Frame type="CutsceneFrame" name="ForegroundCutsceneTemplate">
+        <RenderType val="HDR"/>
+        <HasRenderTarget val="true"/>
+        
+        <Animation name="Show">
+            <Event event="OnShown" action="Reset"/>
+            <Event event="OnShown" action="Play"/>
+            
+            <Controller type="Cutscene" end="Loop">
+                <Key type="Cutscene" action="Play" time="0.0"/>
+            </Controller>
+        </Animation>
+
+        <Animation name="CharacterChange">
+            <Event event="CharacterChanged" action="Reset"/>
+            <Event event="CharacterChanged" action="Play"/>
+            
+            <Controller type="Cutscene" end="Stop">
+                <Key type="Cutscene" action="Bookmark" time="0.0" bookmark="CharacterBirthStart"/>
+            </Controller>
+        </Animation>
+
+        <Animation name="CharacterReadyStart">
+            <Event event="Ready" action="Reset"/>
+            <Event event="Ready" action="Play"/>
+
+            <Controller type="Cutscene" end="Stop">
+                <Key type="Cutscene" action="Bookmark" time="0.0" bookmark="CharacterReadyStart"/>
+            </Controller>
+        </Animation>
+
+        <Animation name="CharacterReadyCancel">
+            <Event event="NotReady" action="Reset"/>
+            <Event event="NotReady" action="Play"/>
+
+            <Controller type="Cutscene" end="Stop">
+                <Key type="Cutscene" action="Bookmark" time="0.0" bookmark="CharacterReadyCancel"/>
+            </Controller>
+        </Animation>
+        
+        <Animation name="SetStandardLight">
+            <Event event="ModeStandard" action="Reset,Play"/>
+            
+            <Controller type="Cutscene" end="Pause">
+                <Key type="Cutscene" action="AddFilter" time="0.0" filter="Standard"/>
+                <Key type="Cutscene" action="RemoveFilter" time="0.0" filter="Mutator"/>
+                <Key type="Cutscene" action="RemoveFilter" time="0.0" filter="Custom"/>
+            </Controller>
+        </Animation>
+
+        <Animation name="SetBrutalPlusLight">
+            <Event event="ModeBrutalPlus" action="Reset,Play"/>
+            
+            <Controller type="Cutscene" end="Pause">
+                <Key type="Cutscene" action="AddFilter" time="0.0" filter="Standard"/>
+                <Key type="Cutscene" action="RemoveFilter" time="0.0" filter="Mutator"/>
+                <Key type="Cutscene" action="RemoveFilter" time="0.0" filter="Custom"/>
+            </Controller>
+        </Animation>
+        
+        <Animation name="SetMutatorLight">
+            <Event event="ModeMutator" action="Reset,Play"/>
+            
+            <Controller type="Cutscene" end="Pause">
+                <Key type="Cutscene" action="AddFilter" time="0.0" filter="Mutator"/>
+                <Key type="Cutscene" action="RemoveFilter" time="0.0" filter="Standard"/>
+                <Key type="Cutscene" action="RemoveFilter" time="0.0" filter="Custom"/>
+            </Controller>
+        </Animation>
+        
+        <Animation name="SetCustomLight">
+            <Event event="ModeCustom" action="Reset,Play"/>
+            
+            <Controller type="Cutscene" end="Pause">
+                <Key type="Cutscene" action="AddFilter" time="0.0" filter="CustomMutator"/>
+                <Key type="Cutscene" action="RemoveFilter" time="0.0" filter="Standard"/>
+                <Key type="Cutscene" action="RemoveFilter" time="0.0" filter="Mutator"/>
+            </Controller>
+        </Animation>
+    </Frame>
+
+    <Frame type="Button" name="NavigationButtonTemplate" template="StandardNavigationTemplates/BattlenetTopNavButtonTemplate">
+        <ClickSound val="@UI_ScreenNavigation_ButtonClick01"/>
+        <HoverSound val="@UI_ScreenNavigation_MouseOver01"/>
+
+        <Toggleable val="true"/>
+    </Frame>
+
+    <Frame type="Frame" name="NavigationTemplate">
+        <Frame type="Image" name="Background">
+            <Anchor side="Top" relative="$parent" pos="Min" offset="0"/>
+            <Anchor side="Left" relative="$parent" pos="Min" offset="0"/>
+            <Anchor side="Right" relative="$parent" pos="Max" offset="0"/>
+            <Height val="72"/>
+            <Texture val="@UI/Glues_Battlenet_TopNav_Bg"/>
+            <TextureType val="Normal"/>
+            <Tiled val="false"/>
+        </Frame>
+        
+        <Frame type="Image" name="BackgroundHexShimmer">
+            <Anchor side="Top" relative="$parent/Background" pos="Min" offset="4"/>
+            <Anchor side="Left" relative="$parent" pos="Min" offset="0"/>
+            <Anchor side="Right" relative="$parent" pos="Max" offset="0"/>
+            <Anchor side="Bottom" relative="$parent/Background" pos="Max" offset="-4"/>
+            <LayerCount val="2"/>
+            
+            <Texture val="@UI/Glues_Battlenet_TopNav_HexPattern" layer="0"/>
+            <TextureType val="Normal" layer="0"/>
+            <Tiled val="true" layer="0"/>
+            <AlphaLayer val="true" layer="0"/>
+            
+            <Texture val="@UI/Glues_Battlenet_TopNav_HexShimmer" layer="1"/>
+            <TextureCoords top="0" left="0" bottom="1" right="1" layer="1"/>
+            <Alpha val="175" layer="1"/>
+            
+            <Animation name="Shimmer">
+                <Event event="OnShown" action="DirectionForward" frame="$parent"/>
+                <Event event="OnShown" action="Play" frame="$parent"/>
+            
+                <Controller type="LayerUV" layer="1" side="Right" relative="false" sidelock="true" end="Loop" >
+                    <Key type="Curve" time="0" value="1" out="linear"/>
+                    <Key type="Curve" time="8" value="0" in="linear"/>
+                </Controller>
+                
+                <Controller type="Fade" end="Loop">
+                    <Key type="Curve" time="0" value="0"/>
+                    <Key type="Curve" time="1" value="100"/>
+                    <Key type="Curve" time="3" value="200"/>
+                    <Key type="Curve" time="4" value="255"/>
+                    <Key type="Curve" time="6" value="200"/>
+                    <Key type="Curve" time="8" value="0"/>
+                </Controller>
+            </Animation>
+        </Frame>
+        
+        <Frame type="Image" name="TopLineHighlightAnim">
+            <Anchor side="Top" relative="$parent/Background" pos="Min" offset="0"/>
+            <Anchor side="Left" relative="$parent" pos="Min" offset="0"/>
+            <Texture val="@UI/Glues_Battlenet_TopNav_TopHighlightAnim"/>
+            
+            <Animation name="Highlight">
+                <Event event="OnShown" action="DirectionForward" frame="$parent"/>
+                <Event event="OnShown" action="Play" frame="$parent"/>
+                
+                <Controller type="Fade" end="Loop">
+                    <Key type="Curve" time="0" value="0"/>
+                    <Key type="Curve" time="1" value="255"/>
+                    <Key type="Curve" time="7" value="255"/>
+                    <Key type="Curve" time="8" value="0"/>
+                </Controller>
+                
+                <Controller type="Anchor" end="Loop" side="Left" relative="true">
+                    <Key type="Curve" time="0" value="0" out="linear"/>
+                    <Key type="Curve" time="8" value="1920" out="linear"/>
+                </Controller>
+            </Animation>
+        </Frame>
+        
+        <Frame type="Image" name="BottomLineHighlightAnim">
+            <Anchor side="Bottom" relative="$parent/Background" pos="Max" offset="2"/>
+            <Anchor side="Left" relative="$parent" pos="Min" offset="0"/>
+            <Texture val="@UI/Glues_Battlenet_TopNav_BottomHighlightAnim"/>
+            
+            <Animation name="Highlight">
+                <Event event="OnShown" action="DirectionForward" frame="$parent"/>
+                <Event event="OnShown" action="Play" frame="$parent"/>
+                
+                <Controller type="Fade" end="Loop">
+                    <Key type="Curve" time="0" value="0"/>
+                    <Key type="Curve" time="2" value="0"/>
+                    <Key type="Curve" time="4.5" value="255"/>
+                    <Key type="Curve" time="6" value="255"/>
+                    <Key type="Curve" time="8" value="0"/>
+                </Controller>
+                
+                <Controller type="Anchor" end="Loop" side="Left" relative="true">
+                    <Key type="Curve" time="0" value="0" out="linear"/>
+                    <Key type="Curve" time="2" value="0" out="linear"/>
+                    <Key type="Curve" time="8" value="1920" out="linear"/>
+                </Controller>
+            </Animation>
+        </Frame>
+        
+        <Frame type="Image" name="ButtonDivider1">
+            <Anchor side="Top" relative="$parent" pos="Min" offset="4"/>
+            <Anchor side="Right" relative="$parent/HomeButton" pos="Max" offset="1"/>
+            <Texture val="@UI/Glues_Battlenet_TopNav_ButtonDivider"/>
+        </Frame>
+        
+        <Frame type="Image" name="ButtonDivider2">
+            <Anchor side="Top" relative="$parent" pos="Min" offset="4"/>
+            <Anchor side="Left" relative="$parent/ClassicButton/HitTestFrame" pos="Max" offset="#StandardNavigation_Mainnav_Divider_Spacing_Horizontal"/>
+            <Texture val="@UI/Glues_Battlenet_TopNav_ButtonDivider"/>
+        </Frame>
+        
+        <Frame type="Image" name="ButtonDivider3">
+            <Anchor side="Top" relative="$parent" pos="Min" offset="4"/>
+            <Anchor side="Left" relative="$parent/BrutalPlusButton/HitTestFrame" pos="Max" offset="#StandardNavigation_Mainnav_Divider_Spacing_Horizontal"/>
+            <Texture val="@UI/Glues_Battlenet_TopNav_ButtonDivider"/>
+        </Frame>
+        
+        <Frame type="Image" name="ButtonDivider4">
+            <Anchor side="Top" relative="$parent" pos="Min" offset="4"/>
+            <Anchor side="Left" relative="$parent/MutationButton/HitTestFrame" pos="Max" offset="#StandardNavigation_Mainnav_Divider_Spacing_Horizontal"/>
+            <Texture val="@UI/Glues_Battlenet_TopNav_ButtonDivider"/>
+        </Frame>
+        
+        <Frame type="Image" name="ButtonDivider6">
+            <Anchor side="Top" relative="$parent" pos="Min" offset="4"/>
+            <Anchor side="Left" relative="$parent/CustomButton/HitTestFrame" pos="Max" offset="#StandardNavigation_Mainnav_Divider_Spacing_Horizontal"/>
+            <Texture val="@UI/Glues_Battlenet_TopNav_ButtonDivider"/>
+        </Frame>
+
+        <Frame type="Button" name="HomeButton">
+            <Anchor side="Top" relative="$parent" pos="Min" offset="0"/>
+            <Anchor side="Left" relative="$parent" pos="Min" offset="0"/>
+            <TooltipAnchorPosition val="BottomCenter"/>
+            <DisplayType val="ImageLayer"/>
+            <ClickSound val="@UI_ActionButtonSelect"/>
+            <Width val="80"/>
+            <Height val="80"/>
+            
+            <Frame type="Frame" name="HitTestFrame">
+                <Anchor side="Top" relative="$parent" pos="Min" offset="2"/>
+                <Anchor side="Bottom" relative="$parent" pos="Max" offset="-8"/>
+                <Anchor side="Left" relative="$parent" pos="Min" offset="0"/>
+                <Anchor side="Right" relative="$parent" pos="Max" offset="-42"/>
+            </Frame>
+            
+            <Frame type="Image" name="HomeIcon">
+                <Anchor side="Top" relative="$parent" pos="Mid" offset="-2"/>
+                <Anchor side="Bottom" relative="$parent" pos="Mid" offset="-2"/>
+                <Anchor side="Left" relative="$parent" pos="Min" offset="10"/>
+                <Width val="50"/>
+                <Height val="49"/>
+                <Texture val="@UI/Glues_Battlenet_TopNav_Home"/>
+                
+                <Animation name="Toggled">
+                    <Event event="Toggled" action="Reset" frame="$parent"/>
+                    <Event event="Toggled" action="Play" frame="$parent"/>
+                    <Event event="Normal" action="Reset" frame="$parent"/>
+                    <Event event="Disabled" action="Reset" frame="$parent"/>
+                    
+                    <Controller type="Texture" end="Pause">
+                        <Key type="Image" time="0" image="@UI/Glues_Battlenet_TopNav_HomeSelected"/>
+                    </Controller>
+                </Animation>
+            </Frame>
+            
+            <Frame type="Image" name="HomeIconHover">
+                <Anchor relative="$parent/HomeIcon"/>
+                <Texture val="@UI/Glues_Battlenet_TopNav_HomeHover"/>
+                <Alpha val="0"/>
+                
+                <Animation name="HomeHover">
+                    <Event event="OnMouseEnter" action="Reset, Play" frame="$parent"/>
+                    <Event event="OnMouseExit" action="DirectionReverse, Play" frame="$parent"/>
+                    
+                    <Controller type="Fade" end="Pause">
+                        <Key type="Curve" time="0" value="0" out="Fast"/>
+                        <Key type="Curve" time=".4" value="255" in="Fast"/>
+                    </Controller>
+                </Animation>
+            </Frame>
+        </Frame>
+
+        <Frame type="Button" name="ClassicButton" template="CoopPlusSelectionLayout/NavigationButtonTemplate">
+            <Text val="@CoopPlus/Launcher/NavigationClassic"/>
+            
+            <Frame type="Frame" name="HitTestFrame">
+                <Anchor side="Top" relative="$parent/$parent" pos="Min" offset="0"/>
+                <Anchor side="Left" relative="$parent/$parent/HomeButton" pos="Max" offset="0"/>
+            </Frame>
+        </Frame>
+
+        <Frame type="Button" name="BrutalPlusButton" template="CoopPlusSelectionLayout/NavigationButtonTemplate">
+            <Text val="@CoopPlus/Launcher/NavigationBrutalPlus"/>
+            
+            <Frame type="Frame" name="HitTestFrame">
+                <Anchor side="Top" relative="$parent/$parent" pos="Min" offset="0"/>
+                <Anchor side="Left" relative="$parent/$parent/ClassicButton/HitTestFrame" pos="Max" offset="0"/>
+            </Frame>
+        </Frame>
+
+        <Frame type="Button" name="MutationButton" template="CoopPlusSelectionLayout/NavigationButtonTemplate">
+            <Text val="@CoopPlus/Launcher/NavigationMutation"/>
+            
+            <Frame type="Frame" name="HitTestFrame">
+                <Anchor side="Top" relative="$parent/$parent" pos="Min" offset="0"/>
+                <Anchor side="Left" relative="$parent/$parent/BrutalPlusButton/HitTestFrame" pos="Max" offset="0"/>
+            </Frame>
+        </Frame>
+
+        <Frame type="Button" name="CustomButton" template="CoopPlusSelectionLayout/NavigationButtonTemplate">
+            <Text val="@CoopPlus/Launcher/NavigationCustom"/>
+            
+            <Frame type="Frame" name="HitTestFrame">
+                <Anchor side="Top" relative="$parent/$parent" pos="Min" offset="0"/>
+                <Anchor side="Left" relative="$parent/$parent/MutationButton/HitTestFrame" pos="Max" offset="0"/>
+            </Frame>
+        </Frame>
+
+        <Frame type="Frame" name="NavigationBlockFrame">
+            <Anchor relative="$parent/Background"/>
+            <AcceptsMouse val="true"/>
+            <Visible val="false"/>
+        </Frame>
+    </Frame>
+
+    <Frame type="Frame" name="SubnavTemplate">
+        <Anchor side="Top" relative="$Anchor_SubNav" pos="Max" offset="0"/>
+        <Anchor side="Left" relative="$parent" pos="Min" offset="0"/>
+        <Anchor side="Right" relative="$parent" pos="Max" offset="0"/>
+        <Height val="60"/>
+            
+        <Frame type="BlurFrame" name="SubnavBackgroundBlur">
+            <Anchor relative="$parent/SubnavBackgroundImage"/>
+            <BlurAmount val=".3"/>
+
+            <Frame type="Image" name="LowImage">
+                <Anchor relative="$parent"/>
+                <Color val="0,0,0"/>
+                <Alpha val="150"/>
+            </Frame>
+        </Frame>
+
+        <Frame type="Image" name="SubnavBackgroundImage">
+            <Anchor side="Top" relative="$parent" pos="Min" offset="0"/>
+            <Anchor side="Left" relative="$parent" pos="Min" offset="0"/>
+            <Anchor side="Right" relative="$parent" pos="Max" offset="0"/>
+            <Height val="52"/>
+            <Texture val="@UI/Glues_Battlenet_SubNav_Bg"/>
+            <TextureType val="Nineslice"/>
+            <Tiled val="true"/>
+            <Alpha val="0"/>
+            
+            <Animation name="FadeNav">
+                <Event event="OnShown" action="Reset"/>
+                <Event event="OnShown" action="Play"/>
+
+                <Controller name="FadeIn" type="Fade" end="Pause">
+                    <Key type="Curve" time="0.0" value="0" in="Linear"/>
+                    <Key type="Curve" time="0.95" value="255" out="Linear"/>
+                </Controller>
+            </Animation>
+        </Frame>
+            
+        <Frame type="Image" name="BottomLineHighlightAnim">
+            <Anchor side="Bottom" relative="$parent/SubnavBackgroundImage" pos="Max" offset="2"/>
+            <Anchor side="Left" relative="$parent" pos="Min" offset="0"/>
+            <Texture val="@UI/Glues_Battlenet_TopNav_BottomHighlightAnim"/>
+            <Alpha val="150"/>
+            
+            <Animation name="Highlight">
+                <Event event="OnShown" action="DirectionForward" frame="$parent"/>
+                <Event event="OnShown" action="Play" frame="$parent"/>
+                
+                <Controller type="Fade" end="Loop">
+                    <Key type="Curve" time="0" value="0"/>
+                    <Key type="Curve" time="2" value="100"/>
+                    <Key type="Curve" time="4.5" value="175"/>
+                    <Key type="Curve" time="6" value="150"/>
+                    <Key type="Curve" time="10" value="0"/>
+                </Controller>
+                
+                <Controller type="Anchor" end="Loop" side="Left" relative="true">
+                    <Key type="Curve" time="0" value="0" out="linear"/>
+                    <Key type="Curve" time="2" value="0" out="linear"/>
+                    <Key type="Curve" time="10" value="1920" out="linear"/>
+                </Controller>
+            </Animation>
+        </Frame>
+        
+        
+        <!-- DIVIDERS -->
+
+        <Frame type="Image" name="SubnavButtonDivider0" template="StandardNavigationTemplates/SubnavButtonDividerTemplate">
+            <Anchor side="Top" relative="$parent/SubnavButton0" pos="Min" offset="15"/>
+            <Anchor side="Left" relative="$parent/SubnavButton0" pos="Max" offset="#StandardNavigation_Subnav_Divider_Spacing_Horizontal"/>
+            <Alpha val="{$parent/SubnavButton1/@Alpha}"/>
+            <Visible val="{$parent/SubnavButton1/@Visible}"/>
+        </Frame>
+
+        <Frame type="Image" name="SubnavButtonDivider1" template="StandardNavigationTemplates/SubnavButtonDividerTemplate">
+            <Anchor side="Top" relative="$parent/SubnavButtonDivider0" pos="Min" offset="0"/>
+            <Anchor side="Left" relative="$parent/SubnavButton1" pos="Max" offset="#StandardNavigation_Subnav_Divider_Spacing_Horizontal"/>
+            <Alpha val="{$parent/SubnavButton2/@Alpha}"/>
+            <Visible val="{$parent/SubnavButton2/@Visible}"/>
+        </Frame>
+
+        <Frame type="Image" name="SubnavButtonDivider2" template="StandardNavigationTemplates/SubnavButtonDividerTemplate">
+            <Anchor side="Top" relative="$parent/SubnavButtonDivider0" pos="Min" offset="0"/>
+            <Anchor side="Left" relative="$parent/SubnavButton2" pos="Max" offset="#StandardNavigation_Subnav_Divider_Spacing_Horizontal"/>
+            <Alpha val="{$parent/SubnavButton3/@Alpha}"/>
+            <Visible val="{$parent/SubnavButton3/@Visible}"/>
+        </Frame>
+
+        <Frame type="Image" name="SubnavButtonDivider3" template="StandardNavigationTemplates/SubnavButtonDividerTemplate">
+            <Anchor side="Top" relative="$parent/SubnavButtonDivider0" pos="Min" offset="0"/>
+            <Anchor side="Left" relative="$parent/SubnavButton3" pos="Max" offset="#StandardNavigation_Subnav_Divider_Spacing_Horizontal"/>
+            <Alpha val="{$parent/SubnavButton4/@Alpha}"/>
+            <Visible val="{$parent/SubnavButton4/@Visible}"/>
+        </Frame>
+
+        <Frame type="Image" name="SubnavButtonDivider4" template="StandardNavigationTemplates/SubnavButtonDividerTemplate">
+            <Anchor side="Top" relative="$parent/SubnavButtonDivider0" pos="Min" offset="0"/>
+            <Anchor side="Left" relative="$parent/SubnavButton4" pos="Max" offset="#StandardNavigation_Subnav_Divider_Spacing_Horizontal"/>
+            <Alpha val="{$parent/SubnavButton5/@Alpha}"/>
+            <Visible val="{$parent/SubnavButton5/@Visible}"/>
+        </Frame>
+
+        <Frame type="Image" name="SubnavButtonDivider5" template="StandardNavigationTemplates/SubnavButtonDividerTemplate">
+            <Anchor side="Top" relative="$parent/SubnavButtonDivider0" pos="Min" offset="0"/>
+            <Anchor side="Left" relative="$parent/SubnavButton5" pos="Max" offset="#StandardNavigation_Subnav_Divider_Spacing_Horizontal"/>
+            <Alpha val="{$parent/SubnavButton6/@Alpha}"/>
+            <Visible val="{$parent/SubnavButton6/@Visible}"/>
+        </Frame>
+
+        <Frame type="Image" name="SubnavButtonDivider6" template="StandardNavigationTemplates/SubnavButtonDividerTemplate">
+            <Anchor side="Top" relative="$parent/SubnavButtonDivider0" pos="Min" offset="0"/>
+            <Anchor side="Left" relative="$parent/SubnavButton6" pos="Max" offset="#StandardNavigation_Subnav_Divider_Spacing_Horizontal"/>
+            <Alpha val="{$parent/SubnavButton7/@Alpha}"/>
+            <Visible val="{$parent/SubnavButton7/@Visible}"/>
+        </Frame>
+        
+        
+        <!-- BUTTONS -->
+            
+        <Frame type="Button" name="SubnavButton0" template="StandardNavigationTemplates/SubnavButtonTemplate">
+            <Anchor side="Top" relative="$parent" pos="Min" offset="0"/>
+            <Anchor side="Left" relative="$Anchor_SubNav" pos="Max" offset="0"/>
+                
+            <Animation name="FadeIn">
+                <Event event="OnShown" action="Reset,Play"/>
+
+                <Controller name="FadeIn" type="Fade" end="Pause">
+                    <Key type="Curve" time="0.0" value="0" in="Auto"/>
+                    <Key type="Curve" time="0.15" value="255" out="Auto"/>
+                </Controller>
+                
+                <Controller type="Anchor" end="Pause" side="Left" relative="true">
+                    <Key type="Curve" time="0.0" value="-40" out="Linear"/>
+                    <Key type="Curve" time="0.15" value="0" out="Linear"/>
+                </Controller>
+            </Animation>
+        </Frame>
+            
+        <Frame type="Button" name="SubnavButton1" template="StandardNavigationTemplates/SubnavButtonTemplate">
+            <Anchor side="Top" relative="$parent/SubnavButton0" pos="Min" offset="0"/>
+            <Anchor side="Left" relative="$parent/SubnavButton0" pos="Max" offset="#StandardNavigation_Subnav_Button_Spacing_Horizontal"/>
+                
+            <Animation name="FadeIn">
+                <Event event="OnShown" action="Reset,Play"/>
+
+                <Controller name="FadeIn" type="Fade" end="Pause">
+                    <Key type="Curve" time="0.0" value="0" in="Auto"/>
+                    <Key type="Curve" time="0.18" value="255" out="Auto"/>
+                </Controller>
+                
+                <Controller type="Anchor" end="Pause" side="Left" relative="true">
+                    <Key type="Curve" time="0.0" value="-10" out="Linear"/>
+                    <Key type="Curve" time="0.18" value="0" out="Linear"/>
+                </Controller>
+            </Animation>
+        </Frame>
+            
+        <Frame type="Button" name="SubnavButton2" template="StandardNavigationTemplates/SubnavButtonTemplate">
+            <Anchor side="Top" relative="$parent/SubnavButton0" pos="Min" offset="0"/>
+            <Anchor side="Left" relative="$parent/SubnavButton1" pos="Max" offset="#StandardNavigation_Subnav_Button_Spacing_Horizontal"/>
+                
+            <Animation name="FadeIn">
+                <Event event="OnShown" action="Reset,Play"/>
+
+                <Controller name="FadeIn" type="Fade" end="Pause">
+                    <Key type="Curve" time="0.0" value="0" in="Auto"/>
+                    <Key type="Curve" time="0.21" value="255" out="Auto"/>
+                </Controller>
+                
+                <Controller type="Anchor" end="Pause" side="Left" relative="true">
+                    <Key type="Curve" time="0.0" value="-10" out="Linear"/>
+                    <Key type="Curve" time="0.21" value="0" out="Linear"/>
+                </Controller>
+            </Animation>
+        </Frame>
+            
+        <Frame type="Button" name="SubnavButton3" template="StandardNavigationTemplates/SubnavButtonTemplate">
+            <Anchor side="Top" relative="$parent/SubnavButton0" pos="Min" offset="0"/>
+            <Anchor side="Left" relative="$parent/SubnavButton2" pos="Max" offset="#StandardNavigation_Subnav_Button_Spacing_Horizontal"/>
+                
+            <Animation name="FadeIn">
+                <Event event="OnShown" action="Reset,Play"/>
+
+                <Controller name="FadeIn" type="Fade" end="Pause">
+                    <Key type="Curve" time="0.0" value="0" in="Auto"/>
+                    <Key type="Curve" time="0.24" value="255" out="Auto"/>
+                </Controller>
+                
+                <Controller type="Anchor" end="Pause" side="Left" relative="true">
+                    <Key type="Curve" time="0.0" value="-10" out="Linear"/>
+                    <Key type="Curve" time="0.24" value="0" out="Linear"/>
+                </Controller>
+            </Animation>
+        </Frame>
+            
+        <Frame type="Button" name="SubnavButton4" template="StandardNavigationTemplates/SubnavButtonTemplate">
+            <Anchor side="Top" relative="$parent/SubnavButton0" pos="Min" offset="0"/>
+            <Anchor side="Left" relative="$parent/SubnavButton3" pos="Max" offset="#StandardNavigation_Subnav_Button_Spacing_Horizontal"/>
+                
+            <Animation name="FadeIn">
+                <Event event="OnShown" action="Reset,Play"/>
+
+                <Controller name="FadeIn" type="Fade" end="Pause">
+                    <Key type="Curve" time="0.0" value="0" in="Auto"/>
+                    <Key type="Curve" time="0.27" value="255" out="Auto"/>
+                </Controller>
+                
+                <Controller type="Anchor" end="Pause" side="Left" relative="true">
+                    <Key type="Curve" time="0.0" value="-10" out="Linear"/>
+                    <Key type="Curve" time="0.27" value="0" out="Linear"/>
+                </Controller>
+            </Animation>
+        </Frame>
+            
+        <Frame type="Button" name="SubnavButton5" template="StandardNavigationTemplates/SubnavButtonTemplate">
+            <Anchor side="Top" relative="$parent/SubnavButton0" pos="Min" offset="0"/>
+            <Anchor side="Left" relative="$parent/SubnavButton4" pos="Max" offset="#StandardNavigation_Subnav_Button_Spacing_Horizontal"/>
+                
+            <Animation name="FadeIn">
+                <Event event="OnShown" action="Reset,Play"/>
+
+                <Controller name="FadeIn" type="Fade" end="Pause">
+                    <Key type="Curve" time="0.0" value="0" in="Auto"/>
+                    <Key type="Curve" time="0.30" value="255" out="Auto"/>
+                </Controller>
+                
+                <Controller type="Anchor" end="Pause" side="Left" relative="true">
+                    <Key type="Curve" time="0.0" value="-10" out="Linear"/>
+                    <Key type="Curve" time="0.30" value="0" out="Linear"/>
+                </Controller>
+            </Animation>
+        </Frame>
+            
+        <Frame type="Button" name="SubnavButton6" template="StandardNavigationTemplates/SubnavButtonTemplate">
+            <Anchor side="Top" relative="$parent/SubnavButton0" pos="Min" offset="0"/>
+            <Anchor side="Left" relative="$parent/SubnavButton5" pos="Max" offset="#StandardNavigation_Subnav_Button_Spacing_Horizontal"/>
+                
+            <Animation name="FadeIn">
+                <Event event="OnShown" action="Reset,Play"/>
+
+                <Controller name="FadeIn" type="Fade" end="Pause">
+                    <Key type="Curve" time="0.0" value="0" in="Auto"/>
+                    <Key type="Curve" time="0.33" value="255" out="Auto"/>
+                </Controller>
+                
+                <Controller type="Anchor" end="Pause" side="Left" relative="true">
+                    <Key type="Curve" time="0.0" value="-10" out="Linear"/>
+                    <Key type="Curve" time="0.33" value="0" out="Linear"/>
+                </Controller>
+            </Animation>
+        </Frame>
+            
+        <Frame type="Button" name="SubnavButton7" template="StandardNavigationTemplates/SubnavButtonTemplate">
+            <Anchor side="Top" relative="$parent/SubnavButton0" pos="Min" offset="0"/>
+            <Anchor side="Left" relative="$parent/SubnavButton6" pos="Max" offset="#StandardNavigation_Subnav_Button_Spacing_Horizontal"/>
+                
+            <Animation name="FadeIn">
+                <Event event="OnShown" action="Reset,Play"/>
+
+                <Controller name="FadeIn" type="Fade" end="Pause">
+                    <Key type="Curve" time="0.0" value="0" in="Auto"/>
+                    <Key type="Curve" time="0.36" value="255" out="Auto"/>
+                </Controller>
+                
+                <Controller type="Anchor" end="Pause" side="Left" relative="true">
+                    <Key type="Curve" time="0.0" value="-10" out="Linear"/>
+                    <Key type="Curve" time="0.36" value="0" out="Linear"/>
+                </Controller>
+            </Animation>
+        </Frame>
+    </Frame>
+
+    <Frame type="Button" name="GameSetupElementTemplate">
+        <AllowedButtons val="Left|Right"/>
+        <CollapseLayout val="true"/>
+        <Anchor relative="Title" side="Top" pos="Min" offset="0"/>
+        <Frame type="Label" name="Title">
+            <Anchor relative="$parent/HorizontalLine" side="Bottom" pos="Min" offset="0"/>
+            <Anchor relative="$parent" side="Left" pos="Min" offset="0"/>
+            <Anchor relative="$parent" side="Right" pos="Max" offset="0"/>
+            <Style val="CoopPlus_GameSetup_Title"/>
+        </Frame>
+        <Frame type="Image" name="HorizontalLine">
+            <Anchor relative="$parent/Content" side="Bottom" pos="Min" offset="0"/>
+            <Anchor relative="$parent" side="Left" pos="Min" offset="0"/>
+            <Anchor relative="$parent" side="Right" pos="Max" offset="0"/>
+            <Height val="2"/>
+        </Frame>
+        <Frame type="Label" name="Content">
+            <Anchor relative="$parent" side="Bottom" pos="Max" offset="0"/>
+            <Anchor relative="$parent" side="Left" pos="Min" offset="0"/>
+            <Anchor relative="$parent" side="Right" pos="Max" offset="0"/>
+            <Style val="CoopPlus_GameSetup_Content"/>
+        </Frame>
+    </Frame>
+
+    <Frame type="Button" name="GameSetupIntentionLhsTemplate">
+        <AllowedButtons val="Left|Right"/>
+
+        <Frame type="Image" name="Glow">
+            <Anchor relative="$parent" side="Top" pos="-0.1" offset="0"/>
+            <Anchor relative="$parent" side="Bottom" pos="1.1" offset="0"/>
+            <Anchor relative="$parent" side="Left" pos="-0.1" offset="0"/>
+            <Anchor relative="$parent" side="Right" pos="1.1" offset="0"/>
+            <Texture val="@UI/SC2_UI_Coop_SelectTile_BackgroundGlow"/>
+            <DesaturateOnDisable val="false"/>
+            <Color val="255,255,255,0"/>
+
+            <Animation name="Pulse">
+                <Event event="OnShown" action="Reset,Play" frame="$parent"/>
+        
+                <Controller type="Fade" end="Loop">
+                    <Key type="Curve" time="0" value="40" inout="Slow"/>
+                    <Key type="Curve" time="1" value="100" inout="Slow"/>
+                    <Key type="Curve" time="2" value="40" inout="Slow"/>
+                </Controller>
+            </Animation>
+        </Frame>
+
+        <Frame type="Frame" name="Arrow" template="CoopPlusSelectionLayout/IntentionArrowImageTemplate">
+            <Anchor relative="$parent" side="Top" pos="Mid" offset="-43"/>
+            <Anchor relative="$parent" side="Bottom" pos="Mid" offset="44"/>
+            <Anchor relative="$parent" side="Left" pos="Max" offset="-70"/>
+            <Anchor relative="$parent" side="Right" pos="Max" offset="0"/>
+        </Frame>
+
+        <Frame type="Label" name="Content">
+            <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+            <Anchor relative="$parent" side="Bottom" pos="Max" offset="0"/>
+            <Anchor relative="$parent" side="Left" pos="Min" offset="50"/>
+            <Anchor relative="$parent" side="Right" pos="Max" offset="-50"/>
+            <Style val="CoopPlus_GameSetup_Content"/>
+        </Frame>
+    </Frame>
+
+    <Frame type="Button" name="GameSetupIntentionRhsTemplate" template="CoopPlusSelectionLayout/GameSetupIntentionLhsTemplate">
+        <Frame type="Image" name="Glow">
+            <Color val="255,255,0,255"/>
+        </Frame>
+
+        <Frame type="Frame" name="Arrow" template="CoopPlusSelectionLayout/IntentionArrowImageTemplate">
+            <Anchor relative="$parent" side="Top" pos="Mid" offset="-43"/>
+            <Anchor relative="$parent" side="Bottom" pos="Mid" offset="44"/>
+            <Anchor relative="$parent" side="Left" pos="Min" offset="0"/>
+            <Anchor relative="$parent" side="Right" pos="Min" offset="70"/>
+            <Frame type="Image" name="Arrow">
+                <Rotation val="0"/>
+            </Frame>
+        </Frame>
+    </Frame>
+
+    <Frame type="Button" name="MapImageTemplate">
+        <Width val="300"/>
+        <Height val="169"/>
+        <Frame type="Image" name="MapImage">
+            <Anchor relative="$parent"/>
+        </Frame>
+        <Frame type="Label" name="MapName">
+            <Anchor relative="$parent"/>
+            <Style val="CoopPlus_GameSetup_Content"/>
+        </Frame>
+
+        <Frame type="Image" name="SelectionBorder">
+            <Anchor relative="$parent"/>
+
+            <Texture val="Assets\Textures\border-transportslot-filled.dds"/>
+            <TextureType val="Border"/>
+        </Frame>
+
+        <Frame type="Image" name="VetoSign">
+            <Anchor relative="$parent" side="Top" pos="Mid" offset="-60"/>
+            <Anchor relative="$parent" side="Bottom" pos="Mid" offset="60"/>
+            <Anchor relative="$parent" side="Left" pos="Mid" offset="-60"/>
+            <Anchor relative="$parent" side="Right" pos="Mid" offset="60"/>
+
+            <Texture val="Assets\Textures\btn-command-cancel.dds"/>
+            <Color val="255,0,0"/>
+        </Frame>
+
+        <StateGroup name="SelectionState">
+            <DefaultState val="Unselected"/>
+            
+            <State name="Selected">
+                <When type="AnimationState" SelectionState="Selected"/>
+                <Action type="SetProperty" frame="SelectionBorder" visible="true"/>
+                <Action type="SetProperty" frame="VetoSign" visible="false"/>
+            </State>
+            
+            <State name="Veto">
+                <When type="AnimationState" SelectionState="Veto"/>
+                <Action type="SetProperty" frame="SelectionBorder" visible="false"/>
+                <Action type="SetProperty" frame="VetoSign" visible="true"/>
+            </State>
+            
+            <State name="Unselected">
+                <Action type="SetProperty" frame="SelectionBorder" visible="false"/>
+                <Action type="SetProperty" frame="VetoSign" visible="false"/>
+            </State>
+        </StateGroup>
+    </Frame>
+
+    <Frame type="Button" name="MutatorIconTemplate">
+        <Width val="60"/>
+        <Height val="60"/>
+        <AcceptsMouse val="true"/>
+        
+        <Frame type="Image" name="MutatorIcon">
+            <Anchor side="Top" relative="$parent" pos="0.13" offset="0"/>
+            <Anchor side="Bottom" relative="$parent" pos="0.87" offset="0"/>
+            <Anchor side="Left" relative="$parent" pos="0.13" offset="0"/>
+            <Anchor side="Right" relative="$parent" pos="0.87" offset="0"/>
+        </Frame>
+        
+        <Frame type="Image" name="BorderImage">
+            <Anchor relative="$parent"/>
+            
+            <Texture val="Assets\Textures\ui_coop_ingame_mutatorFrame.dds"/>
+            <TextureType val="Normal"/>
+        </Frame>
+
+        <Frame type="Image" name="SelectionBorder">
+            <Anchor relative="$parent"/>
+
+            <Texture val="Assets\Textures\border-transportslot-filled.dds"/>
+            <TextureType val="Border"/>
+        </Frame>
+
+        <Frame type="Image" name="VetoSign">
+            <Anchor relative="$parent" side="Top" pos="Mid" offset="-60"/>
+            <Anchor relative="$parent" side="Bottom" pos="Mid" offset="60"/>
+            <Anchor relative="$parent" side="Left" pos="Mid" offset="-60"/>
+            <Anchor relative="$parent" side="Right" pos="Mid" offset="60"/>
+
+            <Texture val="Assets\Textures\btn-command-cancel.dds"/>
+            <Color val="255,0,0"/>
+        </Frame>
+
+        <StateGroup name="SelectionState">
+            <DefaultState val="Unselected"/>
+            
+            <State name="Selected">
+                <When type="AnimationState" SelectionState="Selected"/>
+                <Action type="SetProperty" frame="SelectionBorder" visible="true"/>
+                <Action type="SetProperty" frame="VetoSign" visible="false"/>
+            </State>
+            
+            <State name="Veto">
+                <When type="AnimationState" SelectionState="Veto"/>
+                <Action type="SetProperty" frame="SelectionBorder" visible="false"/>
+                <Action type="SetProperty" frame="VetoSign" visible="true"/>
+            </State>
+            
+            <State name="Unselected">
+                <Action type="SetProperty" frame="SelectionBorder" visible="false"/>
+                <Action type="SetProperty" frame="VetoSign" visible="false"/>
+            </State>
+        </StateGroup>
+    </Frame>
+
+    <Frame type="Button" name="EnemyCompositionTemplate">
+        <Width val="300"/>
+        <Height val="60"/>
+        <AcceptsMouse val="true"/>
+
+        <Frame type="Image" name="Background">
+            <Anchor relative="$parent" side="Top" pos="-0.2" offset="0"/>
+            <Anchor relative="$parent" side="Bottom" pos="1.2" offset="0"/>
+            <Anchor relative="$parent" side="Left" pos="-0.2" offset="0"/>
+            <Anchor relative="$parent" side="Right" pos="1.2" offset="0"/>
+            <Alpha val="120"/>
+            <Texture val="@UI/SC2_UI_Coop_SelectTile_BackgroundGlow"/>
+        </Frame>
+        
+        <Frame type="Image" name="RaceIcon">
+            <Anchor relative="$parent/IconBorder"/>
+        </Frame>
+        
+        <Frame type="Image" name="IconBorder">
+            <Anchor side="Top" relative="$parent" pos="Min" offset="0"/>
+            <Anchor side="Left" relative="$parent" pos="Min" offset="0"/>
+            <Width val="60"/>
+            <Height val="60"/>
+
+            <Texture val="assets/textures/ui_coop_ingame_attackwaves_frame.dds"/>
+            <TextureType val="Normal"/>
+        </Frame>
+
+        <Frame type="Image" name="SelectionBorder">
+            <Anchor relative="$parent"/>
+
+            <Texture val="Assets\Textures\border-transportslot-filled.dds"/>
+            <TextureType val="Border"/>
+        </Frame>
+
+        <Frame type="Label" name="Name">
+            <Anchor side="Top" relative="$parent" pos="Min" offset="0"/>
+            <Anchor side="Bottom" relative="$parent" pos="Max" offset="0"/>
+            <Anchor side="Left" relative="$parent/RaceIcon" pos="Max" offset="0"/>
+            <Anchor side="Right" relative="$parent" pos="Max" offset="0"/>
+
+            <Style val="CoopPlus_GameSetup_ContentSmall"/>
+        </Frame>
+
+        <StateGroup name="SelectionState">
+            <DefaultState val="Unselected"/>
+            
+            <State name="Selected">
+                <When type="AnimationState" SelectionState="Selected"/>
+                <Action type="SetProperty" frame="SelectionBorder" visible="true"/>
+            </State>
+            
+            <State name="Veto">
+                <When type="AnimationState" SelectionState="Veto"/>
+                <Action type="SetProperty" frame="SelectionBorder" visible="false"/>
+            </State>
+            
+            <State name="Unselected">
+                <Action type="SetProperty" frame="SelectionBorder" visible="false"/>
+            </State>
+        </StateGroup>
+
+        <StateGroup name="RaceState">
+            <DefaultState val="Rand"/>
+            
+            <State name="Prot">
+                <When type="AnimationState" RaceState="Prot"/>
+                <Action type="SetProperty" frame="RaceIcon" texture="assets/textures/ui_coop_ingame_attackwaves_protoss.dds"/>
+                <Action type="SetProperty" frame="Background" color="65,181,142"/>
+            </State>
+            
+            <State name="Zerg">
+                <When type="AnimationState" RaceState="Zerg"/>
+                <Action type="SetProperty" frame="RaceIcon" texture="assets/textures/ui_coop_ingame_attackwaves_zerg.dds"/>
+                <Action type="SetProperty" frame="Background" color="156,96,0"/>
+            </State>
+            
+            <State name="Terr">
+                <When type="AnimationState" RaceState="Terr"/>
+                <Action type="SetProperty" frame="RaceIcon" texture="assets/textures/ui_coop_ingame_attackwaves_terran.dds"/>
+                <Action type="SetProperty" frame="Background" color="89,29,173"/>
+            </State>
+
+            <State name="Rand">
+                <Action type="SetProperty" frame="RaceIcon" texture="Assets\Textures\ui_hots_icon_shared_questionmark.dds"/>
+                <Action type="SetProperty" frame="Background" color="107,107,107"/>
+            </State>
+        </StateGroup>
+    </Frame>
+
+    <Frame type="Button" name="SimpleTextTemplate">
+        <Style val="CoopPlus_GameSetup_Content"/>
+    </Frame>
+
+    <Frame type="Frame" name="SelectionDialogCurrentMutatorSelectionTemplate">
+        <Width val="800"/>
+        <Height val="80"/>
+    </Frame>
+
+    <Frame type="Button" name="ReadyButtonTemplate" template="CoopPlusSelectionLayout/AlternateButtonTemplate">
+        <Text val="@UI/ScreenCoopCampaign/Ready"/>
+
+        <StateGroup name="ReadyState">
+            <DefaultState val="NotReady"/>
+
+            <State name="BothReady">
+                <When type="AnimationState" ReadyState="BothReady"/>
+                <Action type="SetProperty" text="@UI/MatchmakingSearchPanel/MatchFound"/>
+            </State>
+            
+            <State name="Waiting">
+                <When type="AnimationState" ReadyState="Waiting"/>
+                <Action type="SetProperty" text="@UI/MatchmakingSearchPanel/WaitingForPlayers"/>
+                <Action type="PlaySound" sound="@UI_BnetSearchTransition"/>
+            </State>
+
+            <State name="NotReady">
+                <Action type="SetProperty" text="@UI/ScreenCoopCampaign/Ready"/>
+                <Action type="PlaySound" sound="@UI_BnetSearchClose"/>
+            </State>
+        </StateGroup>
+    </Frame>
+
+    <Frame type="Button" name="LevelProgressBarTemplate">
+        <Width val="120"/>
+        <Height val="120"/>
+        <ClickSound val="@UI_ActionButtonSelect"/>
+
+        <Frame type="ProgressBar" name="LevelProgressBar">
+            <Anchor relative="$parent"/>
+            <AcceptsMouse val="false"/>
+
+            <Color val="FFFFFF"/>
+            <ColorStep val="FFFFFF"/>
+            <UseFillContainer val="False"/>
+            <Circular val="True"/>
+            <CircularStart val="0"/>
+            <CircularEndOffset val="360"/>
+            <MaxValue val="100"/>
+            <Value val="50"/>
+            
+            <Frame type="Image" name="BorderImage">
+                <Anchor side="Top" relative="$parent" pos="0.025" offset="0"/>
+                <Anchor side="Bottom" relative="$parent" pos="0.975" offset="0"/>
+                <Anchor side="Left" relative="$parent" pos="0.025" offset="0"/>
+                <Anchor side="Right" relative="$parent" pos="0.975" offset="0"/>
+                <Texture val="@UI/SC2_UI_Coop_CommanderIcon_CircularProgress_Border_Normal"/>
+            </Frame>
+            
+            <Frame type="Frame" name="FillImageContainer">
+                <Anchor relative="$parent"/>
+                
+                <Frame type="Image" name="FillImage">
+                    <Anchor relative="$parent"/>
+                    <Texture val="@UI/SC2_UI_Coop_CommanderIcon_CircularProgress_Fill_Normal"/>
+                    <TextureType val="Circular"/>
+                </Frame>
+            </Frame>
+            
+            <Frame type="Image" name="MaxLevelFillImage">
+                <Anchor relative="$parent"/>
+                <Visible val="False"/>
+                <Texture val="@UI/SC2_UI_Coop_CommanderIcon_CircularProgress_Fill_Max"/>
+            </Frame>
+        </Frame>
+        
+        <Frame type="Label" name="LevelLabel">
+            <Anchor side="Top" relative="$parent" pos="0.05" offset="0"/>
+            <Anchor side="Bottom" relative="$parent" pos="Max" offset="0"/>
+            <Anchor side="Left" relative="$parent" pos="0.05" offset="0"/>
+            <Anchor side="Right" relative="$parent" pos="Max" offset="0"/>
+            <Style val="CoopPlus_CommanderLevel"/>
+            <Text val="15"/>
+        </Frame>
+
+        <Frame type="Label" name="CustomizeLabel">
+            <Anchor side="Top" relative="$parent" pos="0.05" offset="0"/>
+            <Anchor side="Bottom" relative="$parent" pos="Max" offset="0"/>
+            <Anchor side="Left" relative="$parent" pos="0.05" offset="0"/>
+            <Anchor side="Right" relative="$parent" pos="Max" offset="0"/>
+            
+            <Alpha val="0"/>
+            <Style val="CoopPlus_CustomizeButton"/>
+            <Text val="@CoopPlus/Launcher/CustomizeButton"/>
+        </Frame>
+
+        <Animation name="HomeHover">
+            <Event event="OnMouseEnter" action="Reset, Play"/>
+            <Event event="OnMouseExit" action="DirectionReverse, Play"/>
+            
+            <Controller type="Fade" end="Pause" frame="LevelLabel">
+                <Key type="Curve" time="0" value="255" out="Fast"/>
+                <Key type="Curve" time=".2" value="0" in="Fast"/>
+            </Controller>
+            
+            <Controller type="Fade" end="Pause" frame="CustomizeLabel">
+                <Key type="Curve" time="0" value="0" out="Fast"/>
+                <Key type="Curve" time=".2" value="255" in="Fast"/>
+            </Controller>
+        </Animation>
+    </Frame>
+
+
+
+
+
+
+
+
+
+    <!--
+    ********************************************************************************
+    -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <Frame type="Frame" name="GlobalTooltipTemplate">
+        <Anchor relative="$GlobalTooltipAnchor"/>
+
+        <RenderPriority val="2000"/>
+        <Alpha val="0"/>
+
+        <Frame type="Image" name="Background">
+            <Anchor relative="$parent"/>
+            
+            <Texture val="@UI/Game_Console_Tooltip_Background"/>
+            <TextureType val="Border"/>
+        </Frame>
+
+        <Frame type="Label" name="Content">
+            <Anchor relative="$parent"/>
+
+            <Style val="CoopPlus_GameSetup_Content"/>
+        </Frame>
+
+        <Animation name="TooltipShow">
+            <Event event="TooltipShown" action="Reset"/>
+            <Event event="TooltipShown" action="Play"/>
+            
+            <Controller type="Fade" end="Pause">
+                <Key type="Curve" time="0" value="0" out="Slow"/>
+                <Key type="Curve" time="0.5" value="255" out="Slow"/>
+                <Key type="Curve" time="7" value="255" out="Slow"/>
+                <Key type="Curve" time="8" value="0" in="Slow"/>
+            </Controller>
+        </Animation>
+    </Frame>
+
+    <Frame type="Frame" name="CoopPlusSelectionTemplate">
+        <Frame type="CutsceneFrame" name="BackgroundCutscene" template="CoopPlusSelectionLayout/BackgroundCutsceneTemplate">
+            <Anchor relative="$parent"/>
+        </Frame>
+
+        <Frame type="Frame" name="InitialModeSelectionScreen">
+            <Anchor relative="$parent"/>
+            <Visible val="false"/>
+        </Frame>
+
+        <Frame type="Frame" name="MainSelectionScreen">
+            <Anchor relative="$parent"/>
+
+            <Frame type="CutsceneFrame" name="ForegroundCutsceneLhs" template="CoopPlusSelectionLayout/ForegroundCutsceneTemplate">
+                <Anchor relative="$parent" side="Top" pos="Max" offset="-782"/>
+                <Anchor relative="$parent" side="Bottom" pos="Max" offset="-242"/>
+                <Anchor relative="$parent" side="Left" pos="Min" offset="0"/>
+                <Anchor relative="$parent" side="Right" pos="Min" offset="960"/>
+                <File val="Cutscenes/UI_Screens_AlliedCommander_Foreground_Mirrored.SC2Cutscene"/>
+            </Frame>
+
+            <Frame type="Frame" name="GameSetupContainer">
+                <Anchor side="Top" relative="Result" pos="Min" offset="0"/>
+                <Anchor side="Bottom" relative="$parent/CommanderSelectionContainer" pos="Min" offset="-90"/>
+                <Anchor side="Left" relative="$parent" pos="Mid" offset="-560"/>
+                <Anchor side="Right" relative="$parent" pos="Mid" offset="560"/>
+                
+                <Frame type="Frame" name="Result">
+                    <Anchor side="Top" relative="Difficulty" pos="Min" offset="0"/>
+                    <Anchor side="Left" relative="$parent" pos="Mid" offset="0"/>
+                    <Anchor side="Right" relative="$parent" pos="Mid" offset="0"/>
+                    <Anchor side="Bottom" relative="$parent" pos="Max" offset="0"/>
+                    <Width val="300"/>
+
+                    <Frame type="Button" name="Difficulty" template="CoopPlusSelectionLayout/GameSetupElementTemplate">
+                        <Anchor relative="$parent/Map" side="Bottom" pos="Min" offset="-40"/>
+                        <Anchor relative="$parent" side="Left" pos="Min" offset="0"/>
+                        <Anchor relative="$parent" side="Right" pos="Max" offset="0"/>
+                        <Frame type="Label" name="Title">
+                            <Text val="@ScoreValue/Name/Difficulty"/>
+                        </Frame>
+                    </Frame>
+
+                    <Frame type="Button" name="Map" template="CoopPlusSelectionLayout/GameSetupElementTemplate">
+                        <Anchor relative="$parent/Mutators" side="Bottom" pos="Min" offset="-40"/>
+                        <Anchor relative="$parent" side="Left" pos="Min" offset="0"/>
+                        <Anchor relative="$parent" side="Right" pos="Max" offset="0"/>
+                        <Frame type="Label" name="Title">
+                            <Text val="@UI/Mission"/>
+                        </Frame>
+                        <Frame type="Label" name="Content">
+                            <Height val="169"/>
+                        </Frame>
+                    </Frame>
+
+                    <Frame type="Button" name="Mutators" template="CoopPlusSelectionLayout/GameSetupElementTemplate">
+                        <Anchor relative="$parent/EnemyComposition" side="Bottom" pos="Min" offset="-40"/>
+                        <Anchor relative="$parent" side="Left" pos="Min" offset="0"/>
+                        <Anchor relative="$parent" side="Right" pos="Max" offset="0"/>
+                        <Frame type="Label" name="Title">
+                            <Text val="@CoopPlus/Launcher/GameSetupResultMutatorsTitle"/>
+                        </Frame>
+                        <Frame type="Label" name="Content">
+                            <Height val="120"/>
+                        </Frame>
+                    </Frame>
+                    
+                    <Frame type="Button" name="EnemyComposition" template="CoopPlusSelectionLayout/GameSetupElementTemplate">
+                        <Anchor relative="$parent" side="Bottom" pos="Max" offset="0"/>
+                        <Anchor relative="$parent" side="Left" pos="Min" offset="0"/>
+                        <Anchor relative="$parent" side="Right" pos="Max" offset="0"/>
+                        <Frame type="Label" name="Title">
+                            <Text val="@CoopPlus/Launcher/GameSetupResultEnemyCompositionTitle"/>
+                        </Frame>
+                        <Frame type="Label" name="Content">
+                            <Height val="60"/>
+                        </Frame>
+                    </Frame>
+                </Frame>
+
+                <Frame type="Frame" name="IntentionLhs">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+                    <Anchor relative="$parent" side="Bottom" pos="Max" offset="0"/>
+                    <Anchor relative="$parent" side="Left" pos="Min" offset="0"/>
+                    <Anchor relative="$parent/Result" side="Right" pos="Min" offset="0"/>
+                    
+                    <Frame type="Button" name="Difficulty" template="CoopPlusSelectionLayout/GameSetupIntentionLhsTemplate">
+                        <Anchor relative="$parent" side="Left" pos="Min" offset="0"/>
+                        <Anchor relative="$parent/$parent/Result/Difficulty" side="Right" pos="Min" offset="-10"/>
+                        <Anchor relative="$parent/$parent/Result/Difficulty" side="Top" pos="Min" offset="0"/>
+                        <Anchor relative="$parent/$parent/Result/Difficulty" side="Bottom" pos="Max" offset="0"/>
+                        <Frame type="Label" name="Content">
+                        </Frame>
+                    </Frame>
+
+                    <Frame type="Button" name="Map" template="CoopPlusSelectionLayout/GameSetupIntentionLhsTemplate">
+                        <Anchor relative="$parent" side="Left" pos="Min" offset="0"/>
+                        <Anchor relative="$parent/$parent/Result/Map" side="Right" pos="Min" offset="-10"/>
+                        <Anchor relative="$parent/$parent/Result/Map" side="Top" pos="Min" offset="0"/>
+                        <Anchor relative="$parent/$parent/Result/Map" side="Bottom" pos="Max" offset="0"/>
+                        <Frame type="Label" name="Content">
+                        </Frame>
+                    </Frame>
+
+                    <Frame type="Button" name="Mutators" template="CoopPlusSelectionLayout/GameSetupIntentionLhsTemplate">
+                        <Anchor relative="$parent" side="Left" pos="Min" offset="0"/>
+                        <Anchor relative="$parent/$parent/Result/Mutators" side="Right" pos="Min" offset="-10"/>
+                        <Anchor relative="$parent/$parent/Result/Mutators" side="Top" pos="Min" offset="0"/>
+                        <Anchor relative="$parent/$parent/Result/Mutators" side="Bottom" pos="Max" offset="0"/>
+                        <Frame type="Label" name="Content">
+                        </Frame>
+                    </Frame>
+
+                    <Frame type="Button" name="EnemyComposition" template="CoopPlusSelectionLayout/GameSetupIntentionLhsTemplate">
+                        <Anchor relative="$parent" side="Left" pos="Min" offset="0"/>
+                        <Anchor relative="$parent/$parent/Result/EnemyComposition" side="Right" pos="Min" offset="-10"/>
+                        <Anchor relative="$parent/$parent/Result/EnemyComposition" side="Top" pos="Min" offset="0"/>
+                        <Anchor relative="$parent/$parent/Result/EnemyComposition" side="Bottom" pos="Max" offset="0"/>
+                        <Frame type="Label" name="Content">
+                        </Frame>
+                    </Frame>
+                </Frame>
+
+                <Frame type="Frame" name="IntentionRhs">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+                    <Anchor relative="$parent" side="Bottom" pos="Max" offset="0"/>
+                    <Anchor relative="$parent/Result" side="Left" pos="Max" offset="0"/>
+                    <Anchor relative="$parent" side="Right" pos="Max" offset="0"/>
+                    
+                    <Frame type="Button" name="Difficulty" template="CoopPlusSelectionLayout/GameSetupIntentionRhsTemplate">
+                        <Anchor relative="$parent/$parent/Result/Difficulty" side="Left" pos="Max" offset="10"/>
+                        <Anchor relative="$parent" side="Right" pos="Max" offset="0"/>
+                        <Anchor relative="$parent/$parent/Result/Difficulty" side="Top" pos="Min" offset="0"/>
+                        <Anchor relative="$parent/$parent/Result/Difficulty" side="Bottom" pos="Max" offset="0"/>
+                        <Frame type="Label" name="Content">
+                        </Frame>
+                    </Frame>
+
+                    <Frame type="Button" name="Map" template="CoopPlusSelectionLayout/GameSetupIntentionRhsTemplate">
+                        <Anchor relative="$parent/$parent/Result/Map" side="Left" pos="Max" offset="10"/>
+                        <Anchor relative="$parent" side="Right" pos="Max" offset="0"/>
+                        <Anchor relative="$parent/$parent/Result/Map" side="Top" pos="Min" offset="0"/>
+                        <Anchor relative="$parent/$parent/Result/Map" side="Bottom" pos="Max" offset="0"/>
+                        <Frame type="Label" name="Content">
+                        </Frame>
+                    </Frame>
+
+                    <Frame type="Button" name="Mutators" template="CoopPlusSelectionLayout/GameSetupIntentionRhsTemplate">
+                        <Anchor relative="$parent/$parent/Result/Mutators" side="Left" pos="Max" offset="10"/>
+                        <Anchor relative="$parent" side="Right" pos="Max" offset="0"/>
+                        <Anchor relative="$parent/$parent/Result/Mutators" side="Top" pos="Min" offset="0"/>
+                        <Anchor relative="$parent/$parent/Result/Mutators" side="Bottom" pos="Max" offset="0"/>
+                        <Frame type="Label" name="Content">
+                        </Frame>
+                    </Frame>
+
+                    <Frame type="Button" name="EnemyComposition" template="CoopPlusSelectionLayout/GameSetupIntentionRhsTemplate">
+                        <Anchor relative="$parent/$parent/Result/EnemyComposition" side="Left" pos="Max" offset="10"/>
+                        <Anchor relative="$parent" side="Right" pos="Max" offset="0"/>
+                        <Anchor relative="$parent/$parent/Result/EnemyComposition" side="Top" pos="Min" offset="0"/>
+                        <Anchor relative="$parent/$parent/Result/EnemyComposition" side="Bottom" pos="Max" offset="0"/>
+                        <Frame type="Label" name="Content">
+                        </Frame>
+                    </Frame>
+                </Frame>
+            </Frame>
+
+            <Frame type="CutsceneFrame" name="ForegroundCutsceneRhs" template="CoopPlusSelectionLayout/ForegroundCutsceneTemplate">
+                <Anchor relative="$parent" side="Top" pos="Max" offset="-782"/>
+                <Anchor relative="$parent" side="Bottom" pos="Max" offset="-242"/>
+                <Anchor relative="$parent" side="Left" pos="Max" offset="-960"/>
+                <Anchor relative="$parent" side="Right" pos="Max" offset="0"/>
+                <File val="Cutscenes/UI_Screens_AlliedCommander_Foreground.SC2Cutscene"/>
+            </Frame>
+
+            <Frame type="Frame" name="ForegroundCutsceneRhs" template="CoopPlusSelectionLayout/ForegroundCutsceneTemplate">
+                <Anchor relative="$parent" side="Top" pos="Max" offset="-782"/>
+                <Anchor relative="$parent" side="Bottom" pos="Max" offset="-242"/>
+                <Anchor relative="$parent" side="Left" pos="Max" offset="-960"/>
+                <Anchor relative="$parent" side="Right" pos="Max" offset="0"/>
+                <File val="Cutscenes/UI_Screens_AlliedCommander_Foreground.SC2Cutscene"/>
+            </Frame>
+
+            <Frame type="Frame" name="CommanderSelectionContainer">
+                <Anchor relative="$parent" side="Top" pos="Max" offset="-242"/>
+                <Anchor relative="$parent" side="Bottom" pos="Max" offset="-116"/>
+                <Anchor relative="$parent" side="Left" pos="Min" offset="20"/>
+                <Anchor relative="$parent" side="Right" pos="Max" offset="-20"/>
+
+                <Frame type="Button" name="Raynor" template="CoopPlusSelectionLayout/CommanderSelectionButtonTemplate">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+                    <Anchor relative="$parent" side="Left" pos="Min" offset="0"/>
+                </Frame>
+                <Frame type="Button" name="Kerrigan" template="CoopPlusSelectionLayout/CommanderSelectionButtonTemplate">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+                    <Anchor relative="$parent/Raynor" side="Left" pos="Max" offset="0"/>
+                </Frame>
+                <Frame type="Button" name="Artanis" template="CoopPlusSelectionLayout/CommanderSelectionButtonTemplate">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+                    <Anchor relative="$parent/Kerrigan" side="Left" pos="Max" offset="0"/>
+                </Frame>
+                <Frame type="Button" name="Swann" template="CoopPlusSelectionLayout/CommanderSelectionButtonTemplate">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+                    <Anchor relative="$parent/Artanis" side="Left" pos="Max" offset="0"/>
+                </Frame>
+                <Frame type="Button" name="Zagara" template="CoopPlusSelectionLayout/CommanderSelectionButtonTemplate">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+                    <Anchor relative="$parent/Swann" side="Left" pos="Max" offset="0"/>
+                </Frame>
+                <Frame type="Button" name="Vorazun" template="CoopPlusSelectionLayout/CommanderSelectionButtonTemplate">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+                    <Anchor relative="$parent/Zagara" side="Left" pos="Max" offset="0"/>
+                </Frame>
+                <Frame type="Button" name="Karax" template="CoopPlusSelectionLayout/CommanderSelectionButtonTemplate">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+                    <Anchor relative="$parent/Vorazun" side="Left" pos="Max" offset="0"/>
+                </Frame>
+                <Frame type="Button" name="Abathur" template="CoopPlusSelectionLayout/CommanderSelectionButtonTemplate">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+                    <Anchor relative="$parent/Karax" side="Left" pos="Max" offset="0"/>
+                </Frame>
+                <Frame type="Button" name="Alarak" template="CoopPlusSelectionLayout/CommanderSelectionButtonTemplate">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+                    <Anchor relative="$parent/Abathur" side="Left" pos="Max" offset="0"/>
+                </Frame>
+                <Frame type="Button" name="Random" template="CoopPlusSelectionLayout/CommanderSelectionButtonTemplate">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+                    <Anchor relative="$parent/Alarak" side="Left" pos="Max" offset="47"/>
+                </Frame>
+                <Frame type="Button" name="Nova" template="CoopPlusSelectionLayout/CommanderSelectionButtonTemplate">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+                    <Anchor relative="$parent/Random" side="Left" pos="Max" offset="48"/>
+                </Frame>
+                <Frame type="Button" name="Stukov" template="CoopPlusSelectionLayout/CommanderSelectionButtonTemplate">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+                    <Anchor relative="$parent/Nova" side="Left" pos="Max" offset="0"/>
+                </Frame>
+                <Frame type="Button" name="Fenix" template="CoopPlusSelectionLayout/CommanderSelectionButtonTemplate">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+                    <Anchor relative="$parent/Stukov" side="Left" pos="Max" offset="0"/>
+                </Frame>
+                <Frame type="Button" name="Dehaka" template="CoopPlusSelectionLayout/CommanderSelectionButtonTemplate">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+                    <Anchor relative="$parent/Fenix" side="Left" pos="Max" offset="0"/>
+                </Frame>
+                <Frame type="Button" name="Horner" template="CoopPlusSelectionLayout/CommanderSelectionButtonTemplate">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+                    <Anchor relative="$parent/Dehaka" side="Left" pos="Max" offset="0"/>
+                </Frame>
+                <Frame type="Button" name="Tychus" template="CoopPlusSelectionLayout/CommanderSelectionButtonTemplate">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+                    <Anchor relative="$parent/Horner" side="Left" pos="Max" offset="0"/>
+                </Frame>
+                <Frame type="Button" name="Zeratul" template="CoopPlusSelectionLayout/CommanderSelectionButtonTemplate">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+                    <Anchor relative="$parent/Tychus" side="Left" pos="Max" offset="0"/>
+                </Frame>
+                <Frame type="Button" name="Stetmann" template="CoopPlusSelectionLayout/CommanderSelectionButtonTemplate">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+                    <Anchor relative="$parent/Zeratul" side="Left" pos="Max" offset="0"/>
+                </Frame>
+                <Frame type="Button" name="Mengsk" template="CoopPlusSelectionLayout/CommanderSelectionButtonTemplate">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+                    <Anchor relative="$parent/Stetmann" side="Left" pos="Max" offset="0"/>
+                </Frame>
+            </Frame>
+
+            <Frame type="Button" name="LevelLhs" template="CoopPlusSelectionLayout/LevelProgressBarTemplate">
+                <Anchor relative="$parent/CommanderSelectionContainer" side="Bottom" pos="Min" offset="-20"/>
+                <Anchor relative="$parent/CommanderSelectionContainer" side="Left" pos="Min" offset="0"/>
+            </Frame>
+
+            <Frame type="Label" name="PlayerNameLhs">
+                <Anchor relative="$parent/PlayerSubLhs" side="Bottom" pos="Min" offset="-4"/>
+                <Anchor relative="$parent/PlayerSubLhs" side="Left" pos="Min" offset="0"/>
+                <Style val="CoopPlus_PlayerNameLhs"/>
+                <Text val="LeftPlayer"/>
+            </Frame>
+
+            <Frame type="Label" name="PlayerSubLhs">
+                <Anchor relative="$parent/LevelLhs" side="Bottom" pos="Max" offset="0"/>
+                <Anchor relative="$parent/LevelLhs" side="Left" pos="Max" offset="10"/>
+                <Style val="CoopPlus_PlayerSubLhs"/>
+                <Text val="LeftSub"/>
+            </Frame>
+
+            <Frame type="Button" name="LevelRhs" template="CoopPlusSelectionLayout/LevelProgressBarTemplate">
+                <Anchor relative="$parent/CommanderSelectionContainer" side="Bottom" pos="Min" offset="-20"/>
+                <Anchor relative="$parent/CommanderSelectionContainer" side="Right" pos="Max" offset="0"/>
+            </Frame>
+
+            <Frame type="Label" name="PlayerNameRhs">
+                <Anchor relative="$parent/PlayerSubRhs" side="Bottom" pos="Min" offset="0"/>
+                <Anchor relative="$parent/PlayerSubRhs" side="Right" pos="Max" offset="0"/>
+                <Style val="CoopPlus_PlayerNameRhs"/>
+                <Text val="RightPlayer"/>
+            </Frame>
+
+            <Frame type="Label" name="PlayerSubRhs">
+                <Anchor relative="$parent/LevelRhs" side="Bottom" pos="Max" offset="0"/>
+                <Anchor relative="$parent/LevelRhs" side="Right" pos="Min" offset="-10"/>
+                <Style val="CoopPlus_PlayerSubRhs"/>
+                <Text val="RightSub"/>
+            </Frame>
+
+            <Frame type="Button" name="ReadyButtonLhs" template="CoopPlusSelectionLayout/ReadyButtonTemplate">
+                <Anchor relative="$parent/CommanderSelectionContainer" side="Top" pos="Max" offset="20"/>
+                <Anchor relative="$parent/CommanderSelectionContainer" side="Left" pos="Min" offset="0"/>
+            </Frame>
+
+            <Frame type="Button" name="ReadyButtonRhs" template="CoopPlusSelectionLayout/ReadyButtonTemplate">
+                <Anchor relative="$parent/CommanderSelectionContainer" side="Top" pos="Max" offset="20"/>
+                <Anchor relative="$parent/CommanderSelectionContainer" side="Right" pos="Max" offset="0"/>
+            </Frame>
+
+            <Frame type="Frame" name="GlobalTooltipAnchor">
+                <Anchor relative="$parent/ReadyButtonLhs" side="Top" pos="Min" offset="0"/>
+                <Anchor relative="$parent/ReadyButtonLhs" side="Bottom" pos="Max" offset="0"/>
+                <Anchor relative="$parent/ReadyButtonLhs" side="Left" pos="Max" offset="20"/>
+                <Anchor relative="$parent/ReadyButtonRhs" side="Right" pos="Min" offset="-20"/>
+                <Handle val="GlobalTooltipAnchor"/>
+            </Frame>
+            
+            <Frame type="Frame" name="Navigation" template="CoopPlusSelectionLayout/NavigationTemplate">
+                <Anchor relative="$parent"/>
+            </Frame>
+
+            <Frame type="Frame" name="Subnavigation" template="CoopPlusSelectionLayout/SubnavTemplate">
+                <Anchor side="Top" relative="$parent/Navigation/Background" pos="Max" offset="0"/>
+            </Frame>
+        </Frame>
+    </Frame>
+
+    <Frame type="Frame" name="SelectionDialogTemplate">
+        <Frame type="Button" name="Background">
+            <Anchor relative="$parent"/>
+            <AcceptsMouse val="true"/>
+            <AllowedButtons val="Left|Right"/>
+            <Frame type="Image" name="Coloring">
+                <Anchor relative="$parent"/>
+                <Color val="0,0,0"/>
+                <Alpha val="128"/>
+            </Frame>
+        </Frame>
+
+        <Frame type="Image" name="Dialog">
+            <!-- XREF: ShowSelectionDialog() -->
+            <Anchor relative="$parent" side="Top" pos="Min" offset="50"/>
+            <Anchor relative="$parent" side="Bottom" pos="Max" offset="-50"/>
+            <Anchor relative="$parent" side="Left" pos="Min" offset="100"/>
+            <Anchor relative="$parent" side="Right" pos="Max" offset="-100"/>
+
+            <AcceptsMouse val="true"/>
+            <Texture val="Assets\Textures\ui_challenge_border_normalover.dds"/>
+            <TextureType val="Border"/>
+            <Alpha val="220"/>
+
+            <Frame type="Frame" name="Inner">
+                <Anchor relative="$parent" side="Top" pos="Min" offset="30"/>
+                <Anchor relative="$parent" side="Bottom" pos="Max" offset="-30"/>
+                <Anchor relative="$parent" side="Left" pos="Min" offset="30"/>
+                <Anchor relative="$parent" side="Right" pos="Max" offset="-30"/>
+
+                <Frame type="Label" name="Title">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="0"/>
+                    <Anchor relative="$parent" side="Left" pos="Min" offset="0"/>
+                    <Style val="@HelpMenuDialogTitle"/>
+                </Frame>
+
+                <Frame type="Frame" name="Content">
+                    <Anchor relative="$parent" side="Top" pos="Min" offset="50"/>
+                    <Anchor relative="$parent" side="Left" pos="Min" offset="0"/>
+                    <Anchor relative="$parent" side="Right" pos="Max" offset="0"/>
+                    <Anchor relative="$parent/ButtonContainer" side="Bottom" pos="Min" offset="-10"/>
+                </Frame>
+
+                <Frame type="Frame" name="ButtonContainer">
+                    <Anchor relative="$parent" side="Left" pos="Min" offset="0"/>
+                    <Anchor relative="$parent" side="Right" pos="Max" offset="0"/>
+                    <Anchor relative="$parent" side="Bottom" pos="Max" offset="0"/>
+                    <Height val="80"/>
+
+                    <CollapseLayout val="true"/>
+                    <Visible val="true"/>
+                </Frame>
+            </Frame>
+        </Frame>
+    </Frame>
+</Desc>

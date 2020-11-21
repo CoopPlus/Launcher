@@ -1,0 +1,989 @@
+include "TriggerLibs/NativeLib"
+include "scripts/cp_global"
+
+//////////// Exports
+
+//// Library initialization
+
+void CPLMC_InitLib();
+
+
+
+//// Matchmaking controller
+
+// Initializer
+void CPLMC_InitializeMatchmaking(
+    CP_Matchmaking matchmaking, CP_GameMode gameMode, bool player1Quitted, bool player2Quitted
+);
+
+// Intention setters
+text CPLMC_SetDifficultyIntention(
+    CP_Matchmaking matchmaking, int player, int intention, CP_Difficulty difficulty, bool dry
+);
+text CPLMC_SetMapIntention(
+    CP_Matchmaking matchmaking, int player, int intention, ST_Array mapList, bool dry
+);
+text CPLMC_SetMutatorIntention(
+    CP_Matchmaking matchmaking, int player, int intention, ST_Array mutatorsList, bool dry
+);
+text CPLMC_SetEnemyCompositionIntention(
+    CP_Matchmaking matchmaking, int player, int intention, CP_EnemyComposition enemyComposition, bool dry
+);
+text CPLMC_SetCommanderIntention(
+    CP_Matchmaking matchmaking, int player, int intention, ST_Array commanderList, bool dry
+);
+text CPLMC_VetoCommander(
+    CP_Matchmaking matchmaking, int player, CP_Commander commander, bool veto, bool dry
+);
+
+// Ready handler; returns c_emptyText if success, otherwise the reason of failure
+text CPLMC_PlayerReady(CP_Matchmaking matchmaking, int player, bool ready);
+text CPLMC_PlayerToggleReady(CP_Matchmaking matchmaking, int player);
+
+// Quit handler
+void CPLMC_PlayerQuit(CP_Matchmaking matchmaking, int player);
+
+// Ready check
+bool CPLMC_AreAllPlayersReady(CP_Matchmaking matchmaking);
+void CPLMC_FinalizeSetup(CP_Matchmaking matchmaking);
+
+
+
+////////////
+
+// Common intention errors
+static text c_intentionUnavailableReasonInvalid;
+static text c_intentionUnavailableReasonPlayerReady;
+static text c_intentionUnavailableReasonRevealed;
+
+static bool g_initialized;
+
+static CP_GameMode GetGameMode(CP_Matchmaking matchmaking);
+static void SetDefaultDifficulty(CP_Matchmaking matchmaking);
+static void SetDefaultMap(CP_Matchmaking matchmaking);
+static void SetDefaultMutators(CP_Matchmaking matchmaking);
+static void SetDefaultEnemyComposition(CP_Matchmaking matchmaking);
+static void SetDefaultCommander(CP_Matchmaking matchmaking, int player);
+
+static void PruneCandidates(ST_Object candidates, int intention, ST_Array vetoList);
+static void FinalizeDifficulty(CP_Matchmaking matchmaking);
+static void FinalizeMap(CP_Matchmaking matchmaking);
+static void FinalizeMutators(CP_Matchmaking matchmaking);
+static void FinalizeEnemyComposition(CP_Matchmaking matchmaking);
+static CP_Commander TakeSingleCommander(CP_Matchmaking matchmaking, int player);
+static void FinalizeCommanders(CP_Matchmaking matchmaking);
+
+static void SyncIntentionToQuitter(CP_Matchmaking matchmaking, int sourceplayer);
+
+
+////////////
+
+void CPLMC_InitLib() {
+    if (g_initialized) {
+        return;
+    }
+
+    CP_InitLib();
+
+    c_intentionUnavailableReasonInvalid = StringExternal("CoopPlus/Launcher/IntentionUnavailableReasonInvalid");
+    c_intentionUnavailableReasonPlayerReady = StringExternal("CoopPlus/Launcher/IntentionUnavailableReasonPlayerReady");
+    c_intentionUnavailableReasonRevealed = StringExternal("CoopPlus/Launcher/IntentionUnavailableReasonRevealed");
+
+    g_initialized = true;
+}
+
+static CP_GameMode GetGameMode(CP_Matchmaking matchmaking) {
+    return STGetString(STR(matchmaking, ".result.gameMode"));
+}
+
+static void SetDefaultDifficulty(CP_Matchmaking matchmaking) {
+    string strategy = CP_GameMode_GetStrategyDifficulty(GetGameMode(matchmaking));
+
+    if (strategy == "FixedCasual") {
+        STSetString(STR(matchmaking, ".result.difficulty"), "Casual");
+    }
+    else if (strategy == "FixedNormal") {
+        STSetString(STR(matchmaking, ".result.difficulty"), "Normal");
+    }
+    else if (strategy == "FixedHard") {
+        STSetString(STR(matchmaking, ".result.difficulty"), "Hard");
+    }
+    else if (strategy == "FixedBrutal") {
+        STSetString(STR(matchmaking, ".result.difficulty"), "Brutal");
+    }
+    else if (strategy == "User") {
+        STSetString(STR(matchmaking, ".result.difficulty"), "Brutal");
+    }
+    else {
+        ST_Assert(false, "SetDefaultDifficulty(): Unknown strategy " + strategy);
+    }
+}
+
+static void SetDefaultMap(CP_Matchmaking matchmaking) {
+    string strategy = CP_GameMode_GetStrategyMap(GetGameMode(matchmaking));
+
+    if (strategy == "WeeklyMutation") {
+        // TODO: mutation
+        STSetString(STR(matchmaking, ".result.map"), "OblivionExpress");
+        STSetInt(STR(matchmaking, ".result.mapRandomStatus"), CP_c_matchmakingRandomStatusNone);
+        STSetInt(STR(matchmaking, ".result.mapVetoCount[0]"), 0);
+        STSetInt(STR(matchmaking, ".result.mapVetoCount[1]"), 0);
+    }
+    else if (strategy == "User") {
+        STSetString(STR(matchmaking, ".result.map"), "");
+        STSetInt(STR(matchmaking, ".result.mapRandomStatus"), CP_c_matchmakingRandomStatusHidden);
+        STSetInt(STR(matchmaking, ".result.mapVetoCount[0]"), 0);
+        STSetInt(STR(matchmaking, ".result.mapVetoCount[1]"), 0);
+    }
+    else {
+        ST_Assert(false, "SetDefaultMap(): Unknown strategy " + strategy);
+    }
+}
+
+static void SetDefaultMutators(CP_Matchmaking matchmaking) {
+    string strategy = CP_GameMode_GetStrategyMutation(GetGameMode(matchmaking));
+
+    if (strategy == "None") {
+        ST_Array_Clear(STGetArray(STR(matchmaking, ".result.mutators")), false);
+        STSetInt(STR(matchmaking, ".result.mutatorsRandomStatus"), CP_c_matchmakingRandomStatusNone);
+        STSetInt(STR(matchmaking, ".result.mutatorsVetoCount[0]"), 0);
+        STSetInt(STR(matchmaking, ".result.mutatorsVetoCount[1]"), 0);
+    }
+    else if (strategy == "GenerateBrutal+1") {
+        ST_Array_Clear(STGetArray(STR(matchmaking, ".result.mutators")), false);
+        STSetInt(STR(matchmaking, ".result.mutatorsRandomStatus"), CP_c_matchmakingRandomStatusHidden);
+        STSetInt(STR(matchmaking, ".result.mutatorsVetoCount[0]"), 0);
+        STSetInt(STR(matchmaking, ".result.mutatorsVetoCount[1]"), 0);
+    }
+    else if (strategy == "GenerateBrutal+2") {
+        ST_Array_Clear(STGetArray(STR(matchmaking, ".result.mutators")), false);
+        STSetInt(STR(matchmaking, ".result.mutatorsRandomStatus"), CP_c_matchmakingRandomStatusHidden);
+        STSetInt(STR(matchmaking, ".result.mutatorsVetoCount[0]"), 0);
+        STSetInt(STR(matchmaking, ".result.mutatorsVetoCount[1]"), 0);
+    }
+    else if (strategy == "GenerateBrutal+3") {
+        ST_Array_Clear(STGetArray(STR(matchmaking, ".result.mutators")), false);
+        STSetInt(STR(matchmaking, ".result.mutatorsRandomStatus"), CP_c_matchmakingRandomStatusHidden);
+        STSetInt(STR(matchmaking, ".result.mutatorsVetoCount[0]"), 0);
+        STSetInt(STR(matchmaking, ".result.mutatorsVetoCount[1]"), 0);
+    }
+    else if (strategy == "GenerateBrutal+4") {
+        ST_Array_Clear(STGetArray(STR(matchmaking, ".result.mutators")), false);
+        STSetInt(STR(matchmaking, ".result.mutatorsRandomStatus"), CP_c_matchmakingRandomStatusHidden);
+        STSetInt(STR(matchmaking, ".result.mutatorsVetoCount[0]"), 0);
+        STSetInt(STR(matchmaking, ".result.mutatorsVetoCount[1]"), 0);
+    }
+    else if (strategy == "GenerateBrutal+5") {
+        ST_Array_Clear(STGetArray(STR(matchmaking, ".result.mutators")), false);
+        STSetInt(STR(matchmaking, ".result.mutatorsRandomStatus"), CP_c_matchmakingRandomStatusHidden);
+        STSetInt(STR(matchmaking, ".result.mutatorsVetoCount[0]"), 0);
+        STSetInt(STR(matchmaking, ".result.mutatorsVetoCount[1]"), 0);
+    }
+    else if (strategy == "GenerateBrutal+6") {
+        ST_Array_Clear(STGetArray(STR(matchmaking, ".result.mutators")), false);
+        STSetInt(STR(matchmaking, ".result.mutatorsRandomStatus"), CP_c_matchmakingRandomStatusHidden);
+        STSetInt(STR(matchmaking, ".result.mutatorsVetoCount[0]"), 0);
+        STSetInt(STR(matchmaking, ".result.mutatorsVetoCount[1]"), 0);
+    }
+    else if (strategy == "WeeklyMutation") {
+        // TODO: mutation
+        ST_Array_Clear(STGetArray(STR(matchmaking, ".result.mutators")), false);
+        STSetString(STR(matchmaking, ".result.mutators[*]"), "BlackFog");
+        STSetString(STR(matchmaking, ".result.mutators[*]"), "InfestedTerranSpawner");
+        STSetString(STR(matchmaking, ".result.mutators[*]"), "WalkingInfested");
+        STSetInt(STR(matchmaking, ".result.mutatorsRandomStatus"), CP_c_matchmakingRandomStatusNone);
+        STSetInt(STR(matchmaking, ".result.mutatorsVetoCount[0]"), 0);
+        STSetInt(STR(matchmaking, ".result.mutatorsVetoCount[1]"), 0);
+    }
+    else if (strategy == "User") {
+        ST_Array_Clear(STGetArray(STR(matchmaking, ".result.mutators")), false);
+        STSetInt(STR(matchmaking, ".result.mutatorsRandomStatus"), CP_c_matchmakingRandomStatusHidden);
+        STSetInt(STR(matchmaking, ".result.mutatorsVetoCount[0]"), 0);
+        STSetInt(STR(matchmaking, ".result.mutatorsVetoCount[1]"), 0);
+    }
+    else {
+        ST_Assert(false, "SetDefaultMutators(): Unknown strategy " + strategy);
+    }
+}
+
+static void SetDefaultEnemyComposition(CP_Matchmaking matchmaking) {
+    string strategy = CP_GameMode_GetStrategyEnemyComposition(GetGameMode(matchmaking));
+
+    if (strategy == "Random") {
+        STSetString(STR(matchmaking, ".result.enemyComposition"), "");
+        STSetInt(STR(matchmaking, ".result.enemyCompositionRandomStatus"), CP_c_matchmakingRandomStatusHidden);
+    }
+    else if (strategy == "RandomUnrevealed") {
+        STSetString(STR(matchmaking, ".result.enemyComposition"), "");
+        STSetInt(STR(matchmaking, ".result.enemyCompositionRandomStatus"), CP_c_matchmakingRandomStatusHidden);
+    }
+    else if (strategy == "User") {
+        STSetString(STR(matchmaking, ".result.enemyComposition"), "");
+        STSetInt(STR(matchmaking, ".result.enemyCompositionRandomStatus"), CP_c_matchmakingRandomStatusHidden);
+    }
+    else {
+        ST_Assert(false, "CPLMC_Construct(): Unknown strategy " + strategy);
+    }
+}
+
+static void SetDefaultCommander(CP_Matchmaking matchmaking, int player) {
+    int playeridx = player - 1;
+
+    STSetString(ST_Array_ByIndex(STGetArray(STR(matchmaking, ".result.commander")), playeridx), "");
+    STSetInt(
+        ST_Array_ByIndex(STGetArray(STR(matchmaking, ".result.commanderRandomStatus")), playeridx),
+        CP_c_matchmakingRandomStatusHidden
+    );
+    STSetInt(ST_Array_ByIndex(STGetArray(STR(matchmaking, ".result.commanderVetoCount")), playeridx), 0);
+}
+
+static void PruneCandidates(ST_Object candidates, int intention, ST_Array vetoList) {
+    int i;
+    int count;
+    string key;
+    ST_Ref ref;
+
+    if ((intention == CP_c_playerIntentionVeto) || (intention == CP_c_playerIntentionRevealRandom)) {
+        count = ST_Array_Count(vetoList);
+        for (i = 0; i < count; i += 1) {
+            key = STGetString(ST_Array_ByIndex(vetoList, i));
+            ref = ST_Object_Query(candidates, key);
+            if (STR_Exists(ref)) {
+                STR_DeleteFromParent(ref);
+            }
+        }
+    }
+}
+
+static void FinalizeDifficulty(CP_Matchmaking matchmaking) {
+    // Do nothing -- difficulty is deterministic in every moment
+}
+
+static void FinalizeMap(CP_Matchmaking matchmaking) {
+    int i;
+    ST_Object candidates;
+    CP_Map map;
+
+    if (STGetString(STR(matchmaking, ".result.map")) != "") {
+        // Already determined
+        return;
+    }
+
+    candidates = ST_Object_Create();
+
+    for (i = 0; i < CP_Map_Count(); i += 1) {
+        map = CP_Map_FromIndex(i);
+        STSetInt(ST_Object_Query(candidates, map), 0);
+    }
+    PruneCandidates(
+        candidates,
+        STGetInt(STR(matchmaking, ".launcher.player[0].mapIntention")),
+        STGetArray(STR(matchmaking, ".launcher.player[0].mapList"))
+    );
+    PruneCandidates(
+        candidates,
+        STGetInt(STR(matchmaking, ".launcher.player[1].mapIntention")),
+        STGetArray(STR(matchmaking, ".launcher.player[1].mapList"))
+    );
+
+    STSetString(
+        STR(matchmaking, ".result.map"),
+        STR_MemberNameFromParentObject(ST_Object_ByIndex(candidates, RandomInt(0, ST_Object_Count(candidates) - 1)))
+    );    
+
+    ST_Object_Destroy(candidates, false);
+}
+static void FinalizeMutator(CP_Matchmaking matchmaking) {
+    // TODO
+}
+static void FinalizeEnemyComposition(CP_Matchmaking matchmaking) {
+    ST_Ref ref = STR(matchmaking, ".result.enemyComposition");
+    string race;
+    ST_Array candidates;
+    int i;
+    CP_EnemyComposition enemyComposition;
+
+    ST_Assert(c_raceProtoss == 1, "FinalizeEnemyComposition(): constant mismatch");
+    ST_Assert(c_raceTerran  == 2, "FinalizeEnemyComposition(): constant mismatch");
+    ST_Assert(c_raceZerg    == 3, "FinalizeEnemyComposition(): constant mismatch");
+
+    if (STGetString(ref) != "") {
+        // Already determined
+        return;
+    }
+
+    race = CP_ConvertRaceToGameLink(RandomInt(1, 3));
+    candidates = ST_Array_Create();
+
+    for (i = 0; i < CP_EnemyComposition_Count(); i += 1) {
+        enemyComposition = CP_EnemyComposition_FromIndex(i);
+        if (CP_EnemyComposition_GetRace(enemyComposition) == race) {
+            STSetString(ST_Array_BackInserter(candidates), enemyComposition);
+        }
+    }
+
+    STSetString(ref, STGetString(ST_Array_ByIndex(candidates, RandomInt(0, ST_Array_Count(candidates) - 1))));
+    ST_Array_Destroy(candidates, false);
+}
+static CP_Commander TakeSingleCommander(CP_Matchmaking matchmaking, int player) {
+    int playeridx = player - 1;
+    string strplayeridx = IntToString(playeridx);
+    int i;
+    ST_Object candidates;
+    CP_Commander commander;
+
+    // STR(matchmaking, ".result.commander[" + IntToString(playeridx) + "]");
+
+    commander = STGetString(STR(matchmaking, ".result.commander[" + strplayeridx + "]"));
+    if (commander != "") {
+        // Already determined
+        return commander;
+    }
+
+    candidates = ST_Object_Create();
+
+    for (i = 0; i < CP_Commander_Count(); i += 1) {
+        commander = CP_Commander_FromIndex(i);
+        STSetInt(ST_Object_Query(candidates, commander), 0);
+    }
+    PruneCandidates(
+        candidates,
+        STGetInt(STR(matchmaking, ".launcher.player[" + strplayeridx + "].commanderIntention")),
+        STGetArray(STR(matchmaking, ".launcher.player[" + strplayeridx + "].commanderList"))
+    );
+
+    commander = STR_MemberNameFromParentObject(
+        ST_Object_ByIndex(candidates, RandomInt(0, ST_Object_Count(candidates) - 1))
+    );
+
+    ST_Object_Destroy(candidates, false);
+
+    return commander;
+}
+static void FinalizeCommanders(CP_Matchmaking matchmaking) {
+    string commander1;
+    string commander2;
+    
+    // Take roll. Note that if both commanders chose random then there might be a duplicate; in this case we reroll.
+    while (true) {
+        commander1 = TakeSingleCommander(matchmaking, 1);
+        commander2 = TakeSingleCommander(matchmaking, 2);
+        if (commander1 != commander2) {
+            break;
+        }
+    }
+
+    STSetString(STR(matchmaking, ".result.commander[0]"), commander1);
+    STSetString(STR(matchmaking, ".result.commander[1]"), commander2);
+}
+
+static void SyncIntentionToQuitter(CP_Matchmaking matchmaking, int sourceplayer) {
+    int sourceplayeridx = sourceplayer - 1;
+    int quitteridx = 1 - sourceplayeridx;
+    ST_Ref sourceplayerref;
+    ST_Ref quitterref;
+
+    if (!STGetBool(STR(matchmaking, ".result.playerQuitted[" + IntToString(quitteridx) + "]"))) {
+        return;
+    }
+
+    sourceplayerref = STR(matchmaking, ".launcher.player[" + IntToString(sourceplayeridx) + "]");
+    quitterref = STR(matchmaking, ".launcher.player[" + IntToString(quitteridx) + "]");
+
+    // Copy intentions then reset commander intentions
+    ST_Object_Copy(STGetObject(quitterref), STGetObject(sourceplayerref), true);
+    STSetInt(STR_R(quitterref, ".commanderIntention"), CP_c_playerIntentionNone);
+    ST_Array_Clear(STGetArray(STR_R(quitterref, ".commanderList")), false);
+}
+
+void CPLMC_InitializeMatchmaking(
+    CP_Matchmaking matchmaking, CP_GameMode gameMode, bool player1Quitted, bool player2Quitted
+) {
+    CP_MatchmakingLauncher newLauncher;
+    ST_Ref launcherRef = ST_Object_Query(matchmaking, "launcher");
+
+    // Reset intention
+    CP_MatchmakingLauncher_Destroy(STGetObject(launcherRef));
+    STSetObject(launcherRef, CP_MatchmakingLauncher_Create());
+    
+    // Set default entries
+    STSetString(STR(matchmaking, ".result.gameMode"), gameMode);
+
+    SetDefaultDifficulty(matchmaking);
+    SetDefaultMap(matchmaking);
+    SetDefaultMutators(matchmaking);
+    SetDefaultEnemyComposition(matchmaking);
+    SetDefaultCommander(matchmaking, 1);
+    SetDefaultCommander(matchmaking, 2);
+
+    if (player1Quitted) { CPLMC_PlayerQuit(matchmaking, 1); }
+    if (player2Quitted) { CPLMC_PlayerQuit(matchmaking, 2); }
+}
+
+// Intention setters
+text CPLMC_SetDifficultyIntention(
+    CP_Matchmaking matchmaking, int player, int intention, CP_Difficulty difficulty, bool dry
+) {
+    int playeridx = player - 1;
+    int otherplayeridx = 1 - playeridx;
+    string strategy = CP_GameMode_GetStrategyDifficulty(GetGameMode(matchmaking));
+    
+    if (intention == CP_c_playerIntentionCopy) {
+        return CPLMC_SetDifficultyIntention(
+            matchmaking, player,
+            STGetInt(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].difficultyIntention")),
+            STGetString(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].difficulty")),
+            dry
+        );
+    }
+
+    // Ready locks their intention
+    if (STGetBool(STR(matchmaking, ".launcher.player[" + IntToString(player - 1) + "].ready"))) {
+        return c_intentionUnavailableReasonPlayerReady;
+    }
+    
+    if (intention == CP_c_playerIntentionNone) {
+        if (difficulty != "") {
+            return c_intentionUnavailableReasonInvalid;
+        }
+    }
+    else if (intention == CP_c_playerIntentionSelect) {
+        if (strategy != "User") {
+            return StringExternal("CoopPlus/Launcher/IntentionUnavailableReasonDifficultyFixed");
+        }
+        if (difficulty == "") {
+            return c_intentionUnavailableReasonInvalid;
+        }
+    }
+    else {
+        return c_intentionUnavailableReasonInvalid;
+    }
+
+    if (!dry) {
+        STSetInt(STR(matchmaking, ".launcher.player[" + IntToString(playeridx) + "].difficultyIntention"), intention);
+        STSetString(STR(matchmaking, ".launcher.player[" + IntToString(playeridx) + "].difficulty"), difficulty);
+
+        SyncIntentionToQuitter(matchmaking, player);
+
+        // Early setup
+        SetDefaultDifficulty(matchmaking);
+        if (
+            STGetInt(
+                STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].difficultyIntention")
+            ) == intention
+        ) {
+            if (
+                (intention == CP_c_playerIntentionSelect)
+                && (
+                    STGetString(
+                        STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].difficulty")
+                    ) == difficulty
+                )
+            ) {
+                STSetString(STR(matchmaking, ".result.difficulty"), difficulty);
+            }
+        }
+    }
+
+    return c_emptyText;
+}
+
+text CPLMC_SetMapIntention(
+    CP_Matchmaking matchmaking, int player, int intention, ST_Array mapList, bool dry
+) {
+    int playeridx = player - 1;
+    int otherplayeridx = 1 - playeridx;
+    string strategy = CP_GameMode_GetStrategyMap(GetGameMode(matchmaking));
+
+    if (intention == CP_c_playerIntentionCopy) {
+        return CPLMC_SetMapIntention(
+            matchmaking, player,
+            STGetInt(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].mapIntention")),
+            STGetArray(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].mapList")),
+            dry
+        );
+    }
+
+    // Ready locks their intention
+    if (STGetBool(STR(matchmaking, ".launcher.player[" + IntToString(player - 1) + "].ready"))) {
+        return c_intentionUnavailableReasonPlayerReady;
+    }
+    
+    // Already revealed
+    if (STGetInt(STR(matchmaking, ".result.mapRandomStatus")) == CP_c_matchmakingRandomStatusRevealed) {
+        return c_intentionUnavailableReasonRevealed;
+    }
+    
+    if (intention == CP_c_playerIntentionNone) {
+        if (ST_Array_Count(mapList) != 0) {
+            return c_intentionUnavailableReasonInvalid;
+        }
+    }
+    else if (
+        (intention == CP_c_playerIntentionVeto)
+        || (intention == CP_c_playerIntentionRevealRandom)
+        || (intention == CP_c_playerIntentionSelect)
+    ) {
+        if (strategy != "User") {
+            return StringExternal("CoopPlus/Launcher/IntentionUnavailableReasonMapFixed");
+        }
+        if (
+            (intention == CP_c_playerIntentionVeto) && (
+                (ST_Array_Count(mapList) == 0) || (ST_Array_Count(mapList) > CP_c_maxMapBanCount)
+            )
+        ) {
+            return c_intentionUnavailableReasonInvalid;
+        }
+        if ((intention == CP_c_playerIntentionRevealRandom) && (ST_Array_Count(mapList) > CP_c_maxMapBanCount)) {
+            return c_intentionUnavailableReasonInvalid;
+        }
+        if ((intention == CP_c_playerIntentionSelect) && (ST_Array_Count(mapList) != 1)) {
+            return c_intentionUnavailableReasonInvalid;
+        }
+    }
+    else {
+        return c_intentionUnavailableReasonInvalid;
+    }
+
+    if (!dry) {
+        STSetInt(STR(matchmaking, ".launcher.player[" + IntToString(playeridx) + "].mapIntention"), intention);
+        ST_Array_Copy(
+            STGetArray(STR(matchmaking, ".launcher.player[" + IntToString(playeridx) + "].mapList")), mapList, false
+        );
+
+        SyncIntentionToQuitter(matchmaking, player);
+
+        // Early setup
+        SetDefaultMap(matchmaking);
+        if (
+            STGetInt(
+                STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].mapIntention")
+            ) == intention
+        ) {
+            if (intention == CP_c_playerIntentionRevealRandom) {
+                FinalizeMap(matchmaking);
+                STSetInt(STR(matchmaking, ".result.mapRandomStatus"), CP_c_matchmakingRandomStatusRevealed);
+            }
+            else if (
+                (intention == CP_c_playerIntentionSelect)
+                && (
+                    STGetString(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].mapList[0]"))
+                    == STGetString(ST_Array_ByIndex(mapList, 0))
+                )
+            ) {
+                STSetString(STR(matchmaking, ".result.map"), STGetString(ST_Array_ByIndex(mapList, 0)));
+                STSetInt(STR(matchmaking, ".result.mapRandomStatus"), CP_c_matchmakingRandomStatusNone);
+            }
+        }
+    }
+
+    return c_emptyText;
+}
+
+text CPLMC_SetMutatorIntention(
+    CP_Matchmaking matchmaking, int player, int intention, ST_Array mutatorsList, bool dry
+) {
+    int playeridx = player - 1;
+    int otherplayeridx = 1 - playeridx;
+    string strategy = CP_GameMode_GetStrategyMutation(GetGameMode(matchmaking));
+
+    if (intention == CP_c_playerIntentionCopy) {
+        return CPLMC_SetMutatorIntention(
+            matchmaking, player,
+            STGetInt(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].mutatorsIntention")),
+            STGetArray(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].mutatorsList")),
+            dry
+        );
+    }
+
+    // Ready locks their intention
+    if (STGetBool(STR(matchmaking, ".launcher.player[" + IntToString(player - 1) + "].ready"))) {
+        return c_intentionUnavailableReasonPlayerReady;
+    }
+
+    // Already revealed
+    if (STGetInt(STR(matchmaking, ".result.mutatorsRandomStatus")) == CP_c_matchmakingRandomStatusRevealed) {
+        return c_intentionUnavailableReasonRevealed;
+    }
+    
+    if (intention == CP_c_playerIntentionNone) {
+        if (ST_Array_Count(mutatorsList) != 0) {
+            return c_intentionUnavailableReasonInvalid;
+        }
+    }
+    else if (
+        (intention == CP_c_playerIntentionVeto)
+        || (intention == CP_c_playerIntentionRevealRandom)
+    ) {
+        if (!(
+            (strategy == "GenerateBrutal+1")
+            || (strategy == "GenerateBrutal+2")
+            || (strategy == "GenerateBrutal+3")
+            || (strategy == "GenerateBrutal+4")
+            || (strategy == "GenerateBrutal+5")
+            || (strategy == "GenerateBrutal+6")
+        )) {
+            return StringExternal("CoopPlus/Launcher/IntentionUnavailableReasonMutatorNonRandom");
+        }
+
+        if (ST_Array_Count(mutatorsList) > CP_c_maxMutatorBanCount) {
+            return c_intentionUnavailableReasonInvalid;
+        }
+        if ((intention == CP_c_playerIntentionVeto) && (ST_Array_Count(mutatorsList) == 0)) {
+            return c_intentionUnavailableReasonInvalid;
+        }
+    }
+    else if (intention == CP_c_playerIntentionSelect) {
+        if (strategy == "None") {
+            return StringExternal("CoopPlus/Launcher/IntentionUnavailableReasonMutatorFixedToNone");
+        }
+        else if (strategy != "User") {
+            return StringExternal("CoopPlus/Launcher/IntentionUnavailableReasonMutatorNotSelectable");
+        }
+        if ((ST_Array_Count(mutatorsList) == 0) || (ST_Array_Count(mutatorsList) > CP_c_maxMutatorSelectCount)) {
+            return c_intentionUnavailableReasonInvalid;
+        }
+    }
+    else {
+        return c_intentionUnavailableReasonInvalid;
+    }
+
+    if (!dry) {
+        STSetInt(STR(matchmaking, ".launcher.player[" + IntToString(playeridx) + "].mutatorsIntention"), intention);
+        ST_Array_Copy(
+            STGetArray(STR(matchmaking, ".launcher.player[" + IntToString(playeridx) + "].mutatorsList")),
+            mutatorsList, false
+        );
+
+        SyncIntentionToQuitter(matchmaking, player);
+
+        // Early setup
+        SetDefaultMutators(matchmaking);
+        if (
+            STGetInt(
+                STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].mutatorsIntention")
+            ) == intention
+        ) {
+            if (intention == CP_c_playerIntentionRevealRandom) {
+                FinalizeMutator(matchmaking);
+                STSetInt(STR(matchmaking, ".result.mutatorsRandomStatus"), CP_c_matchmakingRandomStatusRevealed);
+            }
+            else if (
+                (intention == CP_c_playerIntentionSelect)
+                && ST_StringArrayMultisetEquivalency(
+                    STGetArray(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].mutatorsList")),
+                    mutatorsList
+                )
+            ) {
+                ST_Array_Copy(STGetArray(STR(matchmaking, ".result.mutators")), mutatorsList, false);
+                STSetInt(STR(matchmaking, ".result.mutatorsRandomStatus"), CP_c_matchmakingRandomStatusNone);
+            }
+        }
+    }
+
+    return c_emptyText;
+}
+
+text CPLMC_SetEnemyCompositionIntention(
+    CP_Matchmaking matchmaking, int player, int intention, CP_EnemyComposition enemyComposition, bool dry
+) {
+    int playeridx = player - 1;
+    int otherplayeridx = 1 - playeridx;
+    string strategy = CP_GameMode_GetStrategyEnemyComposition(GetGameMode(matchmaking));
+
+    if (intention == CP_c_playerIntentionCopy) {
+        return CPLMC_SetEnemyCompositionIntention(
+            matchmaking, player,
+            STGetInt(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].enemyCompositionIntention")),
+            STGetString(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].enemyComposition")),
+            dry
+        );
+    }
+
+    // Ready locks their intention
+    if (STGetBool(STR(matchmaking, ".launcher.player[" + IntToString(player - 1) + "].ready"))) {
+        return c_intentionUnavailableReasonPlayerReady;
+    }
+
+    // Already revealed
+    if (STGetInt(STR(matchmaking, ".result.enemyCompositionRandomStatus")) == CP_c_matchmakingRandomStatusRevealed) {
+        return c_intentionUnavailableReasonRevealed;
+    }
+    
+    if (intention == CP_c_playerIntentionNone) {
+        if (enemyComposition != "") {
+            return c_intentionUnavailableReasonInvalid;
+        }
+    }
+    else if (intention == CP_c_playerIntentionRevealRandom) {
+        if (strategy == "RandomUnrevealed") {
+            return StringExternal("CoopPlus/Launcher/IntentionUnavailableReasonEnemyCompositionNotRevealable");
+        }
+        if (enemyComposition != "") {
+            return c_intentionUnavailableReasonInvalid;
+        }
+    }
+    else if (intention == CP_c_playerIntentionSelect) {
+        if (strategy != "User") {
+            return StringExternal("CoopPlus/Launcher/IntentionUnavailableReasonEnemyCompositionNotSelectable");
+        }
+        if (enemyComposition == "") {
+            return c_intentionUnavailableReasonInvalid;
+        }
+    }
+    else {
+        return c_intentionUnavailableReasonInvalid;
+    }
+
+    if (!dry) {
+        STSetInt(STR(matchmaking, ".launcher.player[" + IntToString(playeridx) + "].enemyCompositionIntention"), intention);
+        STSetString(
+            STR(matchmaking, ".launcher.player[" + IntToString(playeridx) + "].enemyComposition"), enemyComposition
+        );
+
+        SyncIntentionToQuitter(matchmaking, player);
+
+        // Early setup
+        SetDefaultEnemyComposition(matchmaking);
+        if (
+            STGetInt(
+                STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].enemyCompositionIntention")
+            ) == intention
+        ) {
+            if (intention == CP_c_playerIntentionRevealRandom) {
+                FinalizeEnemyComposition(matchmaking);
+                STSetInt(STR(matchmaking, ".result.enemyCompositionRandomStatus"), CP_c_matchmakingRandomStatusRevealed);
+            }
+            else if (
+                (intention == CP_c_playerIntentionSelect)
+                && (
+                    STGetString(
+                        STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].enemyComposition")
+                    ) == enemyComposition
+                )
+            ) {
+                STSetString(STR(matchmaking, ".result.enemyComposition"), enemyComposition);
+                STSetInt(STR(matchmaking, ".result.enemyCompositionRandomStatus"), CP_c_matchmakingRandomStatusNone);
+            }
+        }
+    }
+
+    return c_emptyText;
+}
+
+text CPLMC_SetCommanderIntention(
+    CP_Matchmaking matchmaking, int player, int intention, ST_Array commanderList, bool dry
+) {
+    int playeridx = player - 1;
+    int otherplayeridx = 1 - playeridx;
+
+    // Ready locks their intention
+    if (STGetBool(STR(matchmaking, ".launcher.player[" + IntToString(player - 1) + "].ready"))) {
+        return c_intentionUnavailableReasonPlayerReady;
+    }
+    
+    if (intention == CP_c_playerIntentionNone) {
+    }
+    else if (intention == CP_c_playerIntentionVeto) {
+        if ((ST_Array_Count(commanderList) == 0) || (ST_Array_Count(commanderList) > CP_c_maxCommanderBanCount)) {
+            return c_intentionUnavailableReasonInvalid;
+        }
+    }
+    else if (intention == CP_c_playerIntentionSelect) {
+        if (ST_Array_Count(commanderList) != 1) {
+            return c_intentionUnavailableReasonInvalid;
+        }
+    }
+    else {
+        return c_intentionUnavailableReasonInvalid;
+    }
+
+    if (!dry) {
+        STSetInt(STR(matchmaking, ".launcher.player[" + IntToString(playeridx) + "].commanderIntention"), intention);
+        ST_Array_Copy(
+            STGetArray(STR(matchmaking, ".launcher.player[" + IntToString(playeridx) + "].commanderList")),
+            commanderList, false
+        );
+
+        SyncIntentionToQuitter(matchmaking, player);
+
+        // Early setup
+        SetDefaultCommander(matchmaking, player);
+        if (intention == CP_c_playerIntentionSelect) {
+            STSetString(
+                STR(matchmaking, ".result.commander[" + IntToString(playeridx) + "]"),
+                STGetString(ST_Array_ByIndex(commanderList, 0))
+            );
+            STSetInt(
+                STR(matchmaking, ".result.commanderRandomStatus[" + IntToString(playeridx) + "]"),
+                CP_c_matchmakingRandomStatusNone
+            );
+        }
+    }
+
+    return c_emptyText;
+}
+
+text CPLMC_VetoCommander(
+    CP_Matchmaking matchmaking, int player, CP_Commander commander, bool veto, bool dry
+) {
+    int playeridx = player - 1;
+    ST_Array vetoArray;
+    text error;
+    int index;
+
+    if (
+        STGetInt(STR(matchmaking, ".launcher.player[" + IntToString(playeridx) + "].commanderIntention"))
+        == CP_c_playerIntentionSelect
+    ) {
+        return StringExternal("CoopPlus/Launcher/IntentionUnavailableReasonCommanderNotRandom");
+    }
+
+    vetoArray = ST_Array_Create();
+
+    ST_Array_Copy(
+        vetoArray,
+        STGetArray(STR(matchmaking, ".launcher.player[" + IntToString(playeridx) + "].commanderList")),
+        false
+    );
+
+    index = ST_FindStringFromStringArray(vetoArray, commander);
+    if (veto) {
+        if (index != -1) {
+            error = StringExternal("CoopPlus/Launcher/IntentionUnavailableReasonCommanderAlreadyBanned");
+        }
+        else if (ST_Array_Count(vetoArray) >= CP_c_maxCommanderBanCount) {
+            error = ST_TextExpressionShortcut(
+                "CoopPlus/Launcher/IntentionUnavailableReasonCommanderVetoCapped",
+                "N", IntToText(CP_c_maxCommanderBanCount)
+            );
+        }
+        else {
+            STSetString(ST_Array_BackInserter(vetoArray), commander);
+        }
+    }
+    else {
+        if (index == -1) {
+            error = StringExternal("CoopPlus/Launcher/IntentionUnavailableReasonCommanderAlreadyUnbanned");
+        }
+        else {
+            ST_Array_DeleteRange(vetoArray, index, index + 1);
+        }
+    }
+
+    if (error == c_emptyText) {
+        if (ST_Array_Count(vetoArray) == 0) {
+            error = CPLMC_SetCommanderIntention(matchmaking, player, CP_c_playerIntentionNone, vetoArray, dry);
+        }
+        else {
+            error = CPLMC_SetCommanderIntention(matchmaking, player, CP_c_playerIntentionVeto, vetoArray, dry);
+        }
+    }
+    
+    ST_Array_Destroy(vetoArray, false);
+    
+    return error;
+}
+
+text CPLMC_PlayerReady(CP_Matchmaking matchmaking, int player, bool ready) {
+    int playeridx = player - 1;
+    int otherplayeridx = 1 - playeridx;
+
+    // Tried to ready with commander selection when other player is already occupying it
+    if (
+        ready
+        && !STGetBool(STR(matchmaking, ".launcher.player[" + IntToString(playeridx) + "].ready"))
+        && STGetBool(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].ready"))
+        && (
+            STGetInt(STR(matchmaking, ".launcher.player[" + IntToString(playeridx) + "].commanderIntention"))
+            == CP_c_playerIntentionSelect
+        )
+        && (
+            STGetInt(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].commanderIntention"))
+            == CP_c_playerIntentionSelect
+        )
+        && (
+            STGetString(STR(matchmaking, ".launcher.player[" + IntToString(playeridx) + "].commanderList[0]"))
+            == STGetString(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].commanderList[0]"))
+        )
+    ) {
+        return StringExternal("CoopPlus/Launcher/ReadyUnavailableReasonSameCommander");
+    }
+    STSetBool(STR(matchmaking, ".launcher.player[" + IntToString(playeridx) + "].ready"), ready);
+    if (STGetBool(STR(matchmaking, ".result.playerQuitted[" + IntToString(otherplayeridx) + "]"))) {
+        STSetBool(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].ready"), ready);
+    }
+
+    return c_emptyText;
+}
+
+text CPLMC_PlayerToggleReady(CP_Matchmaking matchmaking, int player) {
+    int playeridx = player - 1;
+    return CPLMC_PlayerReady(
+        matchmaking, player, !STGetBool(STR(matchmaking, ".launcher.player[" + IntToString(playeridx) + "].ready"))
+    );
+}
+
+void CPLMC_PlayerQuit(CP_Matchmaking matchmaking, int player) {
+    int playeridx = player - 1;
+    int otherplayer = 3 - player;
+    int otherplayeridx = 1 - playeridx;
+    bool oldOtherPlayerReady = STGetBool(
+        STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].ready")
+    );
+    
+    // Set quit flag
+    STSetBool(STR(matchmaking, ".result.playerQuitted[" + IntToString(playeridx) + "]"), true);
+
+    // Cancel ready status (since quit flag is set, both players will cancel ready)
+    CPLMC_PlayerReady(matchmaking, otherplayer, false);
+
+    // Do as if setting all intentions again so that quitter syncs properly
+    CPLMC_SetDifficultyIntention(
+        matchmaking, otherplayer,
+        STGetInt(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].difficultyIntention")),
+        STGetString(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].difficulty")),
+        false
+    );
+    CPLMC_SetMapIntention(
+        matchmaking, otherplayer,
+        STGetInt(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].mapIntention")),
+        STGetArray(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].mapList")),
+        false
+    );
+    CPLMC_SetMutatorIntention(
+        matchmaking, otherplayer,
+        STGetInt(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].mutatorsIntention")),
+        STGetArray(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].mutatorsList")),
+        false
+    );
+    CPLMC_SetEnemyCompositionIntention(
+        matchmaking, otherplayer,
+        STGetInt(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].enemyCompositionIntention")),
+        STGetString(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].enemyComposition")),
+        false
+    );
+    CPLMC_SetCommanderIntention(
+        matchmaking, otherplayer,
+        STGetInt(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].commanderIntention")),
+        STGetArray(STR(matchmaking, ".launcher.player[" + IntToString(otherplayeridx) + "].commanderList")),
+        false
+    );
+    
+    // Set ready status again
+    CPLMC_PlayerReady(matchmaking, otherplayer, oldOtherPlayerReady);
+}
+
+bool CPLMC_AreAllPlayersReady(CP_Matchmaking matchmaking) {
+    return STGetBool(STR(matchmaking, ".launcher.player[0].ready"))
+        && STGetBool(STR(matchmaking, ".launcher.player[1].ready"));
+}
+
+void CPLMC_FinalizeSetup(CP_Matchmaking matchmaking) {
+    ST_Assert(CPLMC_AreAllPlayersReady(matchmaking), "CPLMC_FinalizeSetup(): All players must be ready");
+    FinalizeDifficulty(matchmaking);
+    FinalizeMap(matchmaking);
+    FinalizeMutator(matchmaking);
+    FinalizeEnemyComposition(matchmaking);
+    FinalizeCommanders(matchmaking);
+}

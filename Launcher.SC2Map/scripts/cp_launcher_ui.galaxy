@@ -1,0 +1,2360 @@
+include "TriggerLibs/NativeLib"
+include "scripts/cp_global"
+
+//////////// Exports
+
+// @commander is invalid if @isRandom is true
+void CPLUI_CallbackPrototype_OnCommanderClicked(int player, bool isRandom, CP_Commander commander) {}
+void CPLUI_CallbackPrototype_OnCommanderContextMenu(int player, bool isRandom, CP_Commander commander) {}
+void CPLUI_CallbackPrototype_OnGameModeChangeRequested(int player, CP_GameMode gameMode) {}
+void CPLUI_CallbackPrototype_OnGameModeScreenRequested(int player) {}
+void CPLUI_CallbackPrototype_OnReadyClicked(int player) {}
+void CPLUI_CallbackPrototype_OnCustomizeClicked(int player) {}
+
+void CPLUI_CallbackPrototype_OnDifficultyContextMenu(int player, bool clickedMyIntention) {}
+void CPLUI_CallbackPrototype_OnMapContextMenu(int player, bool clickedMyIntention) {}
+void CPLUI_CallbackPrototype_OnMutatorsContextMenu(int player, bool clickedMyIntention) {}
+void CPLUI_CallbackPrototype_OnEnemyCompositionContextMenu(int player, bool clickedMyIntention) {}
+
+void CPLUI_CallbackPrototype_OnMapSelected(int player, int intention, ST_Array mapList) {}
+void CPLUI_CallbackPrototype_OnMutatorSelected(int player, int intention, ST_Array mutatorsList) {}
+void CPLUI_CallbackPrototype_OnEnemyCompositionSelected(int player, int intention, CP_EnemyComposition enemyComposition) {}
+
+struct CPLUI_Callbacks {
+    funcref<CPLUI_CallbackPrototype_OnCommanderClicked> onCommanderClicked;
+    funcref<CPLUI_CallbackPrototype_OnCommanderContextMenu> onCommanderContextMenu;
+    funcref<CPLUI_CallbackPrototype_OnGameModeChangeRequested> onGameModeChangeRequested;
+    funcref<CPLUI_CallbackPrototype_OnGameModeScreenRequested> onGameModeScreenRequested;
+    funcref<CPLUI_CallbackPrototype_OnReadyClicked> onReadyClicked;
+    funcref<CPLUI_CallbackPrototype_OnCustomizeClicked> onCustomizeClicked;
+
+    // Clicking intentions and setup results
+    funcref<CPLUI_CallbackPrototype_OnDifficultyContextMenu> onDifficultyContextMenu;
+    funcref<CPLUI_CallbackPrototype_OnMapContextMenu> onMapContextMenu;
+    funcref<CPLUI_CallbackPrototype_OnMutatorsContextMenu> onMutatorsContextMenu;
+    funcref<CPLUI_CallbackPrototype_OnEnemyCompositionContextMenu> onEnemyCompositionContextMenu;
+
+    // Clicking elements in selection dialogs
+    funcref<CPLUI_CallbackPrototype_OnMapSelected> onMapSelected;
+    funcref<CPLUI_CallbackPrototype_OnMutatorSelected> onMutatorSelected;
+    funcref<CPLUI_CallbackPrototype_OnEnemyCompositionSelected> onEnemyCompositionSelected;
+};
+
+void CPLUI_Callbacks_Copy(structref<CPLUI_Callbacks> lhs, structref<CPLUI_Callbacks> rhs) {
+    lhs.onCommanderClicked = rhs.onCommanderClicked;
+    lhs.onCommanderContextMenu = rhs.onCommanderContextMenu;
+    lhs.onGameModeChangeRequested = rhs.onGameModeChangeRequested;
+    lhs.onGameModeScreenRequested = rhs.onGameModeScreenRequested;
+    lhs.onReadyClicked = rhs.onReadyClicked;
+    lhs.onCustomizeClicked = rhs.onCustomizeClicked;
+
+    lhs.onDifficultyContextMenu = rhs.onDifficultyContextMenu;
+    lhs.onMapContextMenu = rhs.onMapContextMenu;
+    lhs.onMutatorsContextMenu = rhs.onMutatorsContextMenu;
+    lhs.onEnemyCompositionContextMenu = rhs.onEnemyCompositionContextMenu;
+
+    lhs.onMapSelected = rhs.onMapSelected;
+    lhs.onMutatorSelected = rhs.onMutatorSelected;
+    lhs.onEnemyCompositionSelected = rhs.onEnemyCompositionSelected;
+}
+
+
+
+//// Library initialization
+
+void CPLUI_InitLib();
+
+
+
+//// UI functions
+
+void CPLUI_Create(
+    CP_Matchmaking initialMatchmaking,
+    structref<CPLUI_Callbacks> callbacks
+);
+void CPLUI_UpdateGameSetup(CP_Matchmaking matchmaking, bool forceAllTransitionEffects);
+
+void CPLUI_Tooltip(int player, text error);
+
+// Selection dialogs
+
+void CPLUI_MapSelection(
+    int player, bool select, bool veto, bool revealRandom, int currentIntention, ST_Array currentMapList
+);
+
+void CPLUI_MutatorSelection(
+    int player, bool select, bool veto, bool revealRandom, int currentIntention, ST_Array currentMutatorsList
+);
+
+void CPLUI_EnemyCompositionSelection(int player, int currentIntention, CP_EnemyComposition currentEnemyComposition);
+
+// Final countdown
+
+void CPLUI_StartCountdown();
+
+
+
+////////////
+
+typedef ST_Object CPLUI_ControlContainer;
+
+static const int c_navigationButtonsCount = 4;
+static const int c_subnavigationButtonsCount = 8;
+ST_Array[c_navigationButtonsCount] c_navigationMapping; // 2D array mapping to CP_GameMode
+static CP_GameMode[c_navigationButtonsCount] c_navigationButtonDefaultMode;
+
+struct CPLUI_Elements_GameSetupDialogControls {
+    int dcDifficulty;
+    int dcMap;
+    CPLUI_ControlContainer controlContainerMap;
+    int dcMutators;
+    CPLUI_ControlContainer controlContainerMutators;
+    int dcEnemyComposition;
+    CPLUI_ControlContainer controlContainerEnemyComposition;
+};
+
+struct CPLUI_Elements {
+    int dialogMain;
+    int[2] dialogGlobalTooltip;
+    int[2] dialogSelection;
+
+    int dcMain;
+    int[2] dcGlobalTooltip;
+    int[2] dcSelection;
+
+    // Main: Navigation
+    int dcNavigationHomeButton;
+    int[c_navigationButtonsCount] dcNavigationModeButtons;
+    int[c_subnavigationButtonsCount] dcSubnavigationModeButtons;
+    trigger triggerNavigationClicked;
+
+    // Main: Cutscenes
+    int dcCutsceneBackground;
+    int[2] dcCutsceneForeground;
+    int cutsceneBackground;
+    int[2] cutsceneForeground;
+
+    // Main: Game setup panels
+    CPLUI_Elements_GameSetupDialogControls gameSetupResultPanel;
+    CPLUI_Elements_GameSetupDialogControls gameSetupResultContent;
+    CPLUI_Elements_GameSetupDialogControls[2] gameSetupIntentionPanel;
+    CPLUI_Elements_GameSetupDialogControls[2] gameSetupIntentionContent;
+    trigger triggerGameSetupClicked;
+    
+    // Main: Commander selection
+    ST_Object dcCommanderSelectionButtons; // string (CP_Commander \cup {CP_Commander_Random()}) -> int (dc)
+    trigger triggerCommanderClicked;
+
+    // Main: Player state
+    int[2] dcPlayerName;
+    int[2] dcPlayerSub;
+    int[2] dcReadyButton;
+    int[2] dcLevelButton;
+    trigger triggerReadyClicked;
+    trigger triggerLevelClicked;
+
+    // GlobalTooltip: Tooltip
+    int[2] dcGlobalTooltipContent;
+
+    // Selection: Dialog
+    bool[2] isSelectionDialogOpened;
+    int[2] dcSelectionDialog;
+    int[2] dcSelectionTitle;
+    int[2] dcSelectionContent;
+    int[2] dcSelectionButtonContainer;
+    trigger triggerSelectionOutOfBoundClickHandler;
+    ST_Array[2] triggerSelectionActiveArray;
+    ST_Object[2] selectionDialogTempData;
+    CPLUI_ControlContainer[2] controlContainerContent;
+    CPLUI_ControlContainer[2] controlContainerButton;
+};
+
+static bool g_initialized;
+static CPLUI_Elements g_ui;
+static CP_Matchmaking g_lastMatchmaking;
+static CPLUI_Callbacks g_callbacks;
+
+// Utilities
+
+static string ForegroundCutsceneFilter(string commander);
+static string UINamePostfix(string uiname, int playeridx);
+
+// UI Initialization
+
+static void InitNavigationElements();
+static void InitCutsceneElements();
+static void InitGameSetupElements();
+static void InitCommanderSelectionElements();
+static void InitPlayerStateElements();
+static void InitMainDialog();
+static void InitTooltipDialog();
+static void InitSelectionDialog();
+
+// Element frame setup
+
+static void SetupMapImageFrame(int frame, bool random, CP_Map map);
+static void SetupMutatorImageFrame(int frame, CP_Mutator mutator, int heightOverride);
+static void SetupEnemyCompositionFrame(int frame, bool random, CP_EnemyComposition enemyComposition);
+static void SetupSimpleTextFrame(int frame, text msg, text tooltip);
+
+// Transitions
+
+static void SetSubnavigationButtons(CP_GameMode gameMode);
+static void SetNavigationToggledStatus(CP_GameMode gameMode);
+static void TransitNavigation(CP_Matchmaking oldMatchmaking, CP_Matchmaking newMatchmaking, bool force);
+static void TransitCutscenes(CP_Matchmaking oldMatchmaking, CP_Matchmaking newMatchmaking, bool force);
+static void TransitGameSetupResult(CP_Matchmaking oldMatchmaking, CP_Matchmaking newMatchmaking, bool force);
+static void TransitGameSetupIntention(
+    CP_Matchmaking oldMatchmaking, CP_Matchmaking newMatchmaking, int player, bool force
+);
+static void TransitPlayerState(CP_Matchmaking oldMatchmaking, CP_Matchmaking newMatchmaking, bool force);
+static void TransitCommanderContainer(
+    CP_Matchmaking oldMatchmaking, CP_Matchmaking newMatchmaking, int player, bool force
+);
+
+// Main dialog click handlers
+
+static bool GameSetupDelegateToCallback(
+    int player, int triggeringDc, int intentionLhsDc, int intentionRhsDc, int resultDc,
+    funcref<CPLUI_CallbackPrototype_OnDifficultyContextMenu> func
+);
+bool CPLUI_OnGameSetupClicked(bool testConds, bool runActions);
+bool CPLUI_OnReadyClicked(bool testConds, bool runActions);
+
+// Selection dialogs
+
+static void SelectionMapToggleVeto(int player, CP_Map map);
+bool CPLUI_OnSelectionMapClicked(bool testConds, bool runActions);
+bool CPLUI_OnSelectionMapButton(bool testConds, bool runActions);
+static void SelectionMutatorUpdateDialog(int player);
+static void SelectionMutatorAddSelection(int player, CP_Mutator mutator);
+static void SelectionMutatorRemoveSelection(int player, int index);
+static void SelectionMutatorToggleVeto(int player, CP_Mutator mutator);
+bool CPLUI_OnSelectionMutatorClicked(bool testConds, bool runActions);
+bool CPLUI_OnSelectionCurrentMutatorClicked(bool testConds, bool runActions);
+bool CPLUI_OnSelectionMutatorButton(bool testConds, bool runActions);
+bool CPLUI_OnSelectionEnemyCompositionContextMenu(bool testConds, bool runActions);
+bool CPLUI_OnNavigationClicked(bool testConds, bool runActions);
+bool CPLUI_OnCommanderClicked(bool testConds, bool runActions);
+bool CPLUI_SelectionOutOfBoundClickHandler(bool testConds, bool runActions);
+
+static bool ShowSelectionDialog(
+    int player, int desiredContentWidth, int desiredContentHeight, bool showButtonContainer, text title
+);
+static void CloseSelectionDialog(int player);
+
+// ControlContainer
+
+bool CPLUI_ControlContainer_Destructor(bool testConds, bool runActions);
+static CPLUI_ControlContainer CPLUI_ControlContainer_Create(int dcBase);
+static void CPLUI_ControlContainer_Destroy(CPLUI_ControlContainer controlContainer);
+static void CPLUI_ControlContainer_Clear(CPLUI_ControlContainer controlContainer);
+static int CPLUI_ControlContainer_Append(CPLUI_ControlContainer controlContainer, int type, string template);
+static int CPLUI_ControlContainer_FromIndex(CPLUI_ControlContainer controlContainer, int index);
+static int CPLUI_ControlContainer_Count(CPLUI_ControlContainer controlContainer);
+static void CPLUI_ControlContainer_GridFormat(
+    CPLUI_ControlContainer controlContainer, int xCount, int yCount,
+    int xLeftMargin, int yTopMargin, int xSpacing, int ySpacing
+);
+
+
+
+////////////
+
+void CPLUI_InitLib() {
+    int i;
+    int navigationIndex;
+    ST_Array navmap;
+    string gameMode;
+
+    if (g_initialized) {
+        return;
+    }
+    CP_InitLib();
+
+    for (i = 0; i < c_navigationButtonsCount; i+=1) {
+        c_navigationMapping[i] = ST_Array_Create();
+    }
+
+    // Initialize navigation info
+    for (i = 0; i < CP_GameMode_Count(); i += 1) {
+        gameMode = CP_GameMode_FromIndex(i);
+        navigationIndex = CP_GameMode_GetLauncherNavigationIndex(gameMode);
+
+        navmap = c_navigationMapping[navigationIndex / 10];
+        while ((navigationIndex % 10) >= ST_Array_Count(navmap)) {
+            STSetString(ST_Array_BackInserter(navmap), "");
+        }
+        STSetString(ST_Array_ByIndex(navmap, navigationIndex % 10), gameMode);
+    }
+    c_navigationButtonDefaultMode[0] = "Brutal";
+    c_navigationButtonDefaultMode[1] = "Brutal+1";
+    c_navigationButtonDefaultMode[2] = "WeeklyMutation";
+    c_navigationButtonDefaultMode[3] = "Custom";
+    ST_Assert(c_navigationButtonsCount == 4, "CPLUI_InitLib(): c_navigationButtonsCount mismatch");
+
+    g_lastMatchmaking = CP_Matchmaking_Create();
+
+    g_initialized = true;
+}
+
+static void InitNavigationElements() {
+    int i;
+
+    g_ui.triggerNavigationClicked = TriggerCreate("CPLUI_OnNavigationClicked");
+    g_ui.dcNavigationHomeButton = DialogControlHookup(
+        g_ui.dcMain, c_triggerControlTypeButton, "MainSelectionScreen/Navigation/HomeButton"
+    );
+    TriggerAddEventDialogControl(
+        g_ui.triggerNavigationClicked, c_playerAny, g_ui.dcNavigationHomeButton,
+        c_triggerControlEventTypeClick
+    );
+    g_ui.dcNavigationModeButtons[0] = DialogControlHookup(
+        g_ui.dcMain, c_triggerControlTypeButton, "MainSelectionScreen/Navigation/ClassicButton"
+    );
+    g_ui.dcNavigationModeButtons[1] = DialogControlHookup(
+        g_ui.dcMain, c_triggerControlTypeButton, "MainSelectionScreen/Navigation/BrutalPlusButton"
+    );
+    g_ui.dcNavigationModeButtons[2] = DialogControlHookup(
+        g_ui.dcMain, c_triggerControlTypeButton, "MainSelectionScreen/Navigation/MutationButton"
+    );
+    g_ui.dcNavigationModeButtons[3] = DialogControlHookup(
+        g_ui.dcMain, c_triggerControlTypeButton, "MainSelectionScreen/Navigation/CustomButton"
+    );
+    ST_Assert(c_navigationButtonsCount == 4, "CPLUI_Create(): c_navigationButtonsCount mismatch");
+    for (i = 0; i < c_navigationButtonsCount; i += 1) {
+        TriggerAddEventDialogControl(
+            g_ui.triggerNavigationClicked, c_playerAny, g_ui.dcNavigationModeButtons[i],
+            c_triggerControlEventTypeClick
+        );
+    }
+    for (i = 0; i < c_subnavigationButtonsCount; i += 1) {
+        g_ui.dcSubnavigationModeButtons[i] = DialogControlHookup(
+            g_ui.dcMain, c_triggerControlTypeButton, "MainSelectionScreen/Subnavigation/SubnavButton" + IntToString(i)
+        );
+        TriggerAddEventDialogControl(
+            g_ui.triggerNavigationClicked, c_playerAny, g_ui.dcSubnavigationModeButtons[i],
+            c_triggerControlEventTypeClick
+        );
+    }
+}
+
+static void InitCutsceneElements() {
+    int i;
+    
+    g_ui.dcCutsceneBackground = DialogControlHookup(g_ui.dcMain, c_triggerControlTypeCutscene, "BackgroundCutscene");
+    g_ui.cutsceneBackground = CutsceneGetTriggerControl(g_ui.dcCutsceneBackground);
+
+    for (i = 0; i < 2; i += 1) {
+        g_ui.dcCutsceneForeground[i] = DialogControlHookup(
+            g_ui.dcMain, c_triggerControlTypeCutscene, UINamePostfix("MainSelectionScreen/ForegroundCutscene{}", i)
+        );
+        g_ui.cutsceneForeground[i] = CutsceneGetTriggerControl(g_ui.dcCutsceneForeground[i]);    
+    }
+}
+
+static void InitGameSetupElements() {
+    int i;
+
+    g_ui.gameSetupResultPanel.dcDifficulty = DialogControlHookup(
+        g_ui.dcMain, c_triggerControlTypeButton, "MainSelectionScreen/GameSetupContainer/Result/Difficulty"
+    );
+    g_ui.gameSetupResultPanel.dcMap = DialogControlHookup(
+        g_ui.dcMain, c_triggerControlTypeButton, "MainSelectionScreen/GameSetupContainer/Result/Map"
+    );
+    g_ui.gameSetupResultPanel.dcMutators = DialogControlHookup(
+        g_ui.dcMain, c_triggerControlTypeButton, "MainSelectionScreen/GameSetupContainer/Result/Mutators"
+    );
+    g_ui.gameSetupResultPanel.dcEnemyComposition = DialogControlHookup(
+        g_ui.dcMain, c_triggerControlTypeButton, "MainSelectionScreen/GameSetupContainer/Result/EnemyComposition"
+    );
+
+    g_ui.gameSetupResultContent.dcDifficulty = DialogControlHookup(
+        g_ui.gameSetupResultPanel.dcDifficulty, c_triggerControlTypeLabel, "Content"
+    );
+    g_ui.gameSetupResultContent.dcMap = DialogControlHookup(
+        g_ui.gameSetupResultPanel.dcMap, c_triggerControlTypePanel, "Content"
+    );
+    g_ui.gameSetupResultContent.controlContainerMap = CPLUI_ControlContainer_Create(
+        g_ui.gameSetupResultContent.dcMap
+    );
+    g_ui.gameSetupResultContent.dcMutators = DialogControlHookup(
+        g_ui.gameSetupResultPanel.dcMutators, c_triggerControlTypePanel, "Content"
+    );
+    g_ui.gameSetupResultContent.controlContainerMutators = CPLUI_ControlContainer_Create(
+        g_ui.gameSetupResultContent.dcMutators
+    );
+    g_ui.gameSetupResultContent.dcEnemyComposition = DialogControlHookup(
+        g_ui.gameSetupResultPanel.dcEnemyComposition, c_triggerControlTypePanel, "Content"
+    );
+    g_ui.gameSetupResultContent.controlContainerEnemyComposition = CPLUI_ControlContainer_Create(
+        g_ui.gameSetupResultContent.dcEnemyComposition
+    );
+
+    for (i = 0; i < 2; i += 1) {
+        g_ui.gameSetupIntentionPanel[i].dcDifficulty = DialogControlHookup(
+            g_ui.dcMain, c_triggerControlTypeButton,
+            UINamePostfix("MainSelectionScreen/GameSetupContainer/Intention{}/Difficulty", i)
+        );
+        g_ui.gameSetupIntentionPanel[i].dcMap = DialogControlHookup(
+            g_ui.dcMain, c_triggerControlTypeButton,
+            UINamePostfix("MainSelectionScreen/GameSetupContainer/Intention{}/Map", i)
+        );
+        g_ui.gameSetupIntentionPanel[i].dcMutators = DialogControlHookup(
+            g_ui.dcMain, c_triggerControlTypeButton,
+            UINamePostfix("MainSelectionScreen/GameSetupContainer/Intention{}/Mutators", i)
+        );
+        g_ui.gameSetupIntentionPanel[i].dcEnemyComposition = DialogControlHookup(
+            g_ui.dcMain, c_triggerControlTypeButton,
+            UINamePostfix("MainSelectionScreen/GameSetupContainer/Intention{}/EnemyComposition", i)
+        );
+    
+        g_ui.gameSetupIntentionContent[i].dcDifficulty = DialogControlHookup(
+            g_ui.gameSetupIntentionPanel[i].dcDifficulty, c_triggerControlTypeLabel, "Content"
+        );
+        g_ui.gameSetupIntentionContent[i].dcMap = DialogControlHookup(
+            g_ui.gameSetupIntentionPanel[i].dcMap, c_triggerControlTypePanel, "Content"
+        );
+        g_ui.gameSetupIntentionContent[i].controlContainerMap = CPLUI_ControlContainer_Create(
+            g_ui.gameSetupIntentionContent[i].dcMap
+        );
+        g_ui.gameSetupIntentionContent[i].dcMutators = DialogControlHookup(
+            g_ui.gameSetupIntentionPanel[i].dcMutators, c_triggerControlTypePanel, "Content"
+        );
+        g_ui.gameSetupIntentionContent[i].controlContainerMutators = CPLUI_ControlContainer_Create(
+            g_ui.gameSetupIntentionContent[i].dcMutators
+        );
+        g_ui.gameSetupIntentionContent[i].dcEnemyComposition = DialogControlHookup(
+            g_ui.gameSetupIntentionPanel[i].dcEnemyComposition, c_triggerControlTypePanel, "Content"
+        );
+        g_ui.gameSetupIntentionContent[i].controlContainerEnemyComposition = CPLUI_ControlContainer_Create(
+            g_ui.gameSetupIntentionContent[i].dcEnemyComposition
+        );
+    }
+
+    g_ui.triggerGameSetupClicked = TriggerCreate("CPLUI_OnGameSetupClicked");
+    TriggerAddEventDialogControl(
+        g_ui.triggerGameSetupClicked, c_playerAny, g_ui.gameSetupResultPanel.dcDifficulty,
+        c_triggerControlEventTypeClick
+    );
+    TriggerAddEventDialogControl(
+        g_ui.triggerGameSetupClicked, c_playerAny, g_ui.gameSetupResultPanel.dcMap,
+        c_triggerControlEventTypeClick
+    );
+    TriggerAddEventDialogControl(
+        g_ui.triggerGameSetupClicked, c_playerAny, g_ui.gameSetupResultPanel.dcMutators,
+        c_triggerControlEventTypeClick
+    );
+    TriggerAddEventDialogControl(
+        g_ui.triggerGameSetupClicked, c_playerAny, g_ui.gameSetupResultPanel.dcEnemyComposition,
+        c_triggerControlEventTypeClick
+    );
+    for (i = 0; i < 2; i += 1) {
+        TriggerAddEventDialogControl(
+            g_ui.triggerGameSetupClicked, c_playerAny, g_ui.gameSetupIntentionPanel[i].dcDifficulty,
+            c_triggerControlEventTypeClick
+        );
+        TriggerAddEventDialogControl(
+            g_ui.triggerGameSetupClicked, c_playerAny, g_ui.gameSetupIntentionPanel[i].dcMap,
+            c_triggerControlEventTypeClick
+        );
+        TriggerAddEventDialogControl(
+            g_ui.triggerGameSetupClicked, c_playerAny, g_ui.gameSetupIntentionPanel[i].dcMutators,
+            c_triggerControlEventTypeClick
+        );
+        TriggerAddEventDialogControl(
+            g_ui.triggerGameSetupClicked, c_playerAny, g_ui.gameSetupIntentionPanel[i].dcEnemyComposition,
+            c_triggerControlEventTypeClick
+        );
+    }
+}
+
+static void InitCommanderSelectionElements() {
+    int i;
+    int j;
+    int dc;
+    string commander;
+
+    g_ui.dcCommanderSelectionButtons = ST_Object_Create();
+    g_ui.triggerCommanderClicked = TriggerCreate("CPLUI_OnCommanderClicked");
+    for (i = 0; i < CP_Commander_Count(); i += 1) {
+        commander = CP_Commander_FromIndex(i);
+        dc = DialogControlHookup(
+            g_ui.dcMain, c_triggerControlTypeButton,
+            "MainSelectionScreen/CommanderSelectionContainer/" + commander
+        );
+        STSetInt(ST_Object_Query(g_ui.dcCommanderSelectionButtons, commander), dc);
+        
+        TriggerAddEventDialogControl(g_ui.triggerCommanderClicked, c_playerAny, dc, c_triggerControlEventTypeClick);
+        // Setup portrait
+        DialogControlSetPropertyAsString(
+            DialogControlHookup(dc, c_triggerControlTypeImage, "Portrait"),
+            c_triggerControlPropertyImage, PlayerGroupAll(),
+            CatalogFieldValueGet(c_gameCatalogCommander, commander, "Portrait", c_playerAny)
+        );
+        // Setup arrow color
+        for (j = 0; j < 2; j += 1) {
+            DialogControlSetAnimationState(dc, PlayerGroupSingle(j + 1), "PlayerState", UINamePostfix("Player{}", j));
+        }
+    }
+    dc = DialogControlHookup(
+        g_ui.dcMain, c_triggerControlTypeButton,
+        "MainSelectionScreen/CommanderSelectionContainer/" + CP_Commander_Random()
+    );
+    STSetInt(
+        ST_Object_Query(g_ui.dcCommanderSelectionButtons, CP_Commander_Random()),
+        dc
+    );
+    TriggerAddEventDialogControl(g_ui.triggerCommanderClicked, c_playerAny, dc, c_triggerControlEventTypeClick);
+    // Setup portrait
+    DialogControlSetPropertyAsString(
+        DialogControlHookup(dc, c_triggerControlTypeImage, "Portrait"), c_triggerControlPropertyImage, PlayerGroupAll(),
+        CatalogFieldValueGet(c_gameCatalogCommander, CP_Commander_Random(), "Portrait", c_playerAny)
+    );
+    // Setup arrow color
+    for (j = 0; j < 2; j += 1) {
+        DialogControlSetAnimationState(dc, PlayerGroupSingle(j + 1), "PlayerState", UINamePostfix("Player{}", j));
+    }
+}
+
+static void InitPlayerStateElements() {
+    int i;
+    text playerName;
+
+    for (i = 0; i < 2; i += 1) {
+        g_ui.dcPlayerName[i] = DialogControlHookup(
+            g_ui.dcMain, c_triggerControlTypeLabel, UINamePostfix("MainSelectionScreen/PlayerName{}", i)
+        );
+        if (PlayerStatus(i + 1) == c_playerStatusUnused) {
+            playerName = StringExternal("UI/LoadingPlayerCard/ComputerPlayerName");
+        }
+        else {
+            playerName = PlayerName(i + 1);
+        }
+        DialogControlSetPropertyAsText(
+            g_ui.dcPlayerName[i], c_triggerControlPropertyText, PlayerGroupAll(), playerName
+        );
+
+        g_ui.dcPlayerSub[i] = DialogControlHookup(
+            g_ui.dcMain, c_triggerControlTypeLabel, UINamePostfix("MainSelectionScreen/PlayerSub{}", i)
+        );
+
+        g_ui.dcReadyButton[i] = DialogControlHookup(
+            g_ui.dcMain, c_triggerControlTypeButton, UINamePostfix("MainSelectionScreen/ReadyButton{}", i)
+        );
+        DialogControlSetPropertyAsBool(
+            g_ui.dcReadyButton[i], c_triggerControlPropertyEnabled, PlayerGroupSingle(2 - i), false
+        );
+
+        g_ui.dcLevelButton[i] = DialogControlHookup(
+            g_ui.dcMain, c_triggerControlTypeButton, UINamePostfix("MainSelectionScreen/Level{}", i)
+        );
+        DialogControlSetPropertyAsBool(
+            g_ui.dcLevelButton[i], c_triggerControlPropertyAcceptMouseTarget, PlayerGroupSingle(2 - i), false
+        );
+    }
+
+    g_ui.triggerReadyClicked = TriggerCreate("CPLUI_OnReadyClicked");
+    g_ui.triggerLevelClicked = TriggerCreate("CPLUI_OnLevelClicked");
+    for (i = 0; i < 2; i += 1) {
+        TriggerAddEventDialogControl(
+            g_ui.triggerReadyClicked, i + 1, g_ui.dcReadyButton[i], c_triggerControlEventTypeClick
+        );
+        TriggerAddEventDialogControl(
+            g_ui.triggerLevelClicked, i + 1, g_ui.dcLevelButton[i], c_triggerControlEventTypeClick
+        );
+    }
+}
+
+static void InitMainDialog() {
+    g_ui.dialogMain = DialogCreate(500, 400, c_anchorCenter, 0, 0, false);
+    DialogSetFullscreen(g_ui.dialogMain, true);
+    DialogSetImageVisible(g_ui.dialogMain, false);
+    DialogSetVisible(g_ui.dialogMain, PlayerGroupAll(), true);
+
+    g_ui.dcMain = DialogControlCreateFromTemplate(
+        g_ui.dialogMain, c_triggerControlTypePanel, "CoopPlusSelectionLayout/CoopPlusSelectionTemplate"
+    );
+    DialogControlSetFullDialog(g_ui.dcMain, PlayerGroupAll(), true);
+
+    InitNavigationElements();
+    InitCutsceneElements();
+    InitGameSetupElements();
+    InitCommanderSelectionElements();
+    InitPlayerStateElements();
+}
+
+static void InitTooltipDialog() {
+    int i;
+
+    for (i = 0; i < 2; i += 1) {
+        // Tooltip
+        g_ui.dialogGlobalTooltip[i] = DialogCreate(500, 400, c_anchorCenter, 0, 0, false);
+        DialogSetFullscreen(g_ui.dialogGlobalTooltip[i], true);
+        DialogSetImageVisible(g_ui.dialogGlobalTooltip[i], false);
+        DialogSetRenderPriority(g_ui.dialogGlobalTooltip[i], 1500);
+        DialogSetVisible(g_ui.dialogGlobalTooltip[i], PlayerGroupSingle(i + 1), true);
+
+        g_ui.dcGlobalTooltip[i] = DialogControlCreateFromTemplate(
+            g_ui.dialogGlobalTooltip[i], c_triggerControlTypePanel, "CoopPlusSelectionLayout/GlobalTooltipTemplate"
+        );
+        g_ui.dcGlobalTooltipContent[i] = DialogControlHookup(
+            g_ui.dcGlobalTooltip[i], c_triggerControlTypeLabel, "Content"
+        );
+    }
+}
+
+static void InitSelectionDialog() {
+    int i;
+
+    g_ui.triggerSelectionOutOfBoundClickHandler = TriggerCreate("CPLUI_SelectionOutOfBoundClickHandler");
+    for (i = 0; i < 2; i += 1) {
+        // Selection
+        g_ui.dialogSelection[i] = DialogCreate(500, 400, c_anchorCenter, 0, 0, false);
+        DialogSetFullscreen(g_ui.dialogSelection[i], true);
+        DialogSetImageVisible(g_ui.dialogSelection[i], false);
+        DialogSetRenderPriority(g_ui.dialogSelection[i], 1200);
+
+        g_ui.dcSelection[i] = DialogControlCreateFromTemplate(
+            g_ui.dialogSelection[i], c_triggerControlTypePanel, "CoopPlusSelectionLayout/SelectionDialogTemplate"
+        );
+        DialogControlSetFullDialog(g_ui.dcSelection[i], PlayerGroupSingle(i + 1), true);
+
+        TriggerAddEventDialogControl(
+            g_ui.triggerSelectionOutOfBoundClickHandler, i + 1,
+            DialogControlHookup(g_ui.dcSelection[i], c_triggerControlTypeButton, "Background"),
+            c_triggerControlEventTypeClick
+        );
+        
+        g_ui.dcSelectionDialog[i] = DialogControlHookup(g_ui.dcSelection[i], c_triggerControlTypeImage, "Dialog");
+        g_ui.dcSelectionTitle[i] = DialogControlHookup(
+            g_ui.dcSelectionDialog[i], c_triggerControlTypeLabel, "Inner/Title"
+        );
+        g_ui.dcSelectionContent[i] = DialogControlHookup(
+            g_ui.dcSelectionDialog[i], c_triggerControlTypePanel, "Inner/Content"
+        );
+        g_ui.dcSelectionButtonContainer[i] = DialogControlHookup(
+            g_ui.dcSelectionDialog[i], c_triggerControlTypePanel, "Inner/ButtonContainer"
+        );
+
+        g_ui.triggerSelectionActiveArray[i] = ST_Array_Create();
+        g_ui.selectionDialogTempData[i] = ST_Object_Create();
+        g_ui.controlContainerContent[i] = CPLUI_ControlContainer_Create(g_ui.dcSelectionContent[i]);
+        g_ui.controlContainerButton[i] = CPLUI_ControlContainer_Create(g_ui.dcSelectionButtonContainer[i]);
+    }
+}
+
+void CPLUI_Create(
+    CP_Matchmaking initialMatchmaking,
+    structref<CPLUI_Callbacks> callbacks
+) {
+    ST_Assert(g_ui.dialogMain == c_invalidDialogId, "CPLUI_Create(): already created!");
+
+    // Callback table
+    CPLUI_Callbacks_Copy(g_callbacks, callbacks);
+
+    InitMainDialog();
+    InitTooltipDialog();
+    InitSelectionDialog();
+
+    // Start updating
+    CPLUI_UpdateGameSetup(initialMatchmaking, true);
+}
+
+static void TransitNavigation(CP_Matchmaking oldMatchmaking, CP_Matchmaking newMatchmaking, bool force) {
+    string oldGameMode = STGetString(STR(oldMatchmaking, ".result.gameMode"));
+    string newGameMode = STGetString(STR(newMatchmaking, ".result.gameMode"));
+
+    if (force || (oldGameMode != newGameMode)) {
+        SetNavigationToggledStatus(newGameMode);
+        SetSubnavigationButtons(newGameMode);
+    }
+}
+
+static void TransitCutscenes(CP_Matchmaking oldMatchmaking, CP_Matchmaking newMatchmaking, bool force) {
+    int i;
+    string oldCommander;
+    string newCommander;
+    string oldCutsceneMode = CP_GameMode_GetLauncherCutsceneMode(STGetString(STR(oldMatchmaking, ".result.gameMode")));
+    string newCutsceneMode = CP_GameMode_GetLauncherCutsceneMode(STGetString(STR(newMatchmaking, ".result.gameMode")));
+
+    if (oldCutsceneMode != newCutsceneMode) {
+        DialogControlSendAnimationEvent(g_ui.dcCutsceneBackground, PlayerGroupAll(), newCutsceneMode);
+    }
+    
+    for (i = 0; i < 2; i += 1) {
+        oldCommander = STGetString(STR(oldMatchmaking, ".result.commander[" + IntToString(i) + "]"));
+        newCommander = STGetString(STR(newMatchmaking, ".result.commander[" + IntToString(i) + "]"));
+        if (force || (oldCommander != newCommander)) {
+            CutsceneSetFilter(g_ui.cutsceneForeground[i], ForegroundCutsceneFilter(newCommander));
+            DialogControlSendAnimationEvent(g_ui.dcCutsceneForeground[i], PlayerGroupAll(), "CharacterChanged");
+            
+            // Filter got reset by CutsceneSetFilter(); reapply CutsceneMode again
+            DialogControlSendAnimationEvent(g_ui.dcCutsceneForeground[i], PlayerGroupAll(), newCutsceneMode);
+        }
+        else if (oldCutsceneMode != newCutsceneMode) {
+            DialogControlSendAnimationEvent(g_ui.dcCutsceneForeground[i], PlayerGroupAll(), newCutsceneMode);
+        }
+    }
+}
+
+static void SetupMapImageFrame(int frame, bool random, CP_Map map) {
+    // REF: CoopPlusSelectionLayout/MapImageTemplate
+    string mapImagePath;
+    text mapName;
+
+    if (random) {
+        mapImagePath = CP_Map_GetLoadingScreenRandom();
+        mapName = CP_Map_GetNameRandom();
+    }
+    else {
+        mapImagePath = CP_Map_GetLoadingScreen(map);
+        mapName = CP_Map_GetName(map);
+    }
+    DialogControlSetPropertyAsString(
+        DialogControlHookup(frame, c_triggerControlTypeImage, "MapImage"),
+        c_triggerControlPropertyImage, PlayerGroupAll(), mapImagePath
+    );
+    DialogControlSetPropertyAsText(
+        DialogControlHookup(frame, c_triggerControlTypeLabel, "MapName"),
+        c_triggerControlPropertyText, PlayerGroupAll(), mapName
+    );
+}
+
+static void SetupMutatorImageFrame(int frame, CP_Mutator mutator, int heightOverride) {
+    // REF: CoopPlusSelectionLayout/MutatorIconTemplate
+    
+    ST_TextExpression exp = ST_TextExpression_CreateFromRawText(StringToText(
+        "<s val=\"@StandardTooltipHeader\">~NAME~</s><n/><s val=\"@StandardTooltip\">~DESCRIPTION~</s>"
+    ));
+    ST_TextExpression_SetToken(exp, "NAME", CP_Mutator_GetName(mutator));
+    ST_TextExpression_SetToken(exp, "DESCRIPTION", CP_Mutator_GetDescription(mutator));
+
+    DialogControlSetPropertyAsString(
+        DialogControlHookup(frame, c_triggerControlTypeImage, "MutatorIcon"),
+        c_triggerControlPropertyImage, PlayerGroupAll(), CP_Mutator_GetIcon(mutator)
+    );
+
+    DialogControlSetPropertyAsText(
+        frame, c_triggerControlPropertyTooltip, PlayerGroupAll(), ST_TextExpression_Result(exp)
+    );
+
+    ST_TextExpression_Destroy(exp);
+
+    if (heightOverride != 0) {
+        DialogControlSetSize(frame, PlayerGroupAll(), heightOverride, heightOverride);
+    }
+}
+
+static void SetupEnemyCompositionFrame(int frame, bool random, CP_EnemyComposition enemyComposition) {
+    // REF: CoopPlusSelectionLayout/EnemyCompositionTemplate
+
+    string race;
+    text name;
+    text tooltip;
+    ST_TextExpression exp;
+
+    if (random) {
+        race = CP_EnemyComposition_GetRaceRandom();
+        name = CP_EnemyComposition_GetNameRandom();
+        tooltip = c_emptyText;
+    }
+    else {
+        race = CP_EnemyComposition_GetRace(enemyComposition);
+        name = CP_EnemyComposition_GetName(enemyComposition);
+        exp = ST_TextExpression_CreateFromRawText(StringToText(
+            "<s val=\"@@StandardTooltipHeaderSub\">~A~</s>"
+            + "<n/><s val=\"@@StandardTooltipHeader\">~B~</s><s val=\"StandardTooltipHalfSize\">"
+            + "<n/><n/></s><s val=\"@@StandardTooltip\">~C~</s>"
+        ));
+        ST_TextExpression_SetToken(exp, "A", CP_EnemyComposition_GetCategory(enemyComposition));
+        ST_TextExpression_SetToken(exp, "B", CP_EnemyComposition_GetName(enemyComposition));
+        ST_TextExpression_SetToken(exp, "C", CP_EnemyComposition_GetDescription(enemyComposition));
+        tooltip = ST_TextExpression_Result(exp);
+        ST_TextExpression_Destroy(exp);
+    }
+
+    DialogControlSetAnimationState(
+        frame, PlayerGroupAll(), "RaceState", race
+    );
+    DialogControlSetPropertyAsText(
+        DialogControlHookup(frame, c_triggerControlTypeLabel, "Name"),
+        c_triggerControlPropertyText, PlayerGroupAll(), name
+    );
+    DialogControlSetPropertyAsText(
+        frame, c_triggerControlPropertyTooltip, PlayerGroupAll(), tooltip
+    );
+}
+
+static void SetupSimpleTextFrame(int frame, text msg, text tooltip) {
+    // REF: CoopPlusSelectionLayout/SimpleTextTemplate
+    DialogControlSetFullDialog(frame, PlayerGroupAll(), true);
+    DialogControlSetPropertyAsText(frame, c_triggerControlPropertyText, PlayerGroupAll(), msg);
+    DialogControlSetPropertyAsText(
+        frame, c_triggerControlPropertyTooltip, PlayerGroupAll(), tooltip
+    );
+}
+
+static void TransitGameSetupResult(CP_Matchmaking oldMatchmaking, CP_Matchmaking newMatchmaking, bool force) {
+    text msg;
+    int i;
+    int dc;
+    CP_GameMode oldGameMode = STGetString(STR(oldMatchmaking, ".result.gameMode"));
+    CP_GameMode newGameMode = STGetString(STR(newMatchmaking, ".result.gameMode"));
+    string oldDifficulty = STGetString(STR(oldMatchmaking, ".result.difficulty"));
+    string newDifficulty = STGetString(STR(newMatchmaking, ".result.difficulty"));
+    string oldMap = STGetString(STR(oldMatchmaking, ".result.map"));
+    string newMap = STGetString(STR(newMatchmaking, ".result.map"));
+    ST_Array oldMutators = STGetArray(STR(oldMatchmaking, ".result.mutators"));
+    ST_Array newMutators = STGetArray(STR(newMatchmaking, ".result.mutators"));
+    string oldEnemyComposition = STGetString(STR(oldMatchmaking, ".result.enemyComposition"));
+    string newEnemyComposition = STGetString(STR(newMatchmaking, ".result.enemyComposition"));
+    
+    if (force || (oldDifficulty != newDifficulty)) {
+        DialogControlSetPropertyAsText(
+            g_ui.gameSetupResultContent.dcDifficulty, c_triggerControlPropertyText, PlayerGroupAll(),
+            CP_Difficulty_GetName(newDifficulty)
+        );
+    }
+
+    if (force || (oldMap != newMap)) {
+        CPLUI_ControlContainer_Clear(g_ui.gameSetupResultContent.controlContainerMap);
+        dc = CPLUI_ControlContainer_Append(
+            g_ui.gameSetupResultContent.controlContainerMap,
+            c_triggerControlTypeButton,
+            "CoopPlusSelectionLayout/MapImageTemplate"
+        );
+        SetupMapImageFrame(dc, newMap == "", newMap);
+    }
+
+    if (force || (oldGameMode != newGameMode)) {
+        DialogControlSetVisible(
+            g_ui.gameSetupResultPanel.dcMutators, PlayerGroupAll(),
+            CP_GameMode_GetStrategyMutation(newGameMode) != "None"
+        );
+    }
+
+    if (force || !ST_Array_Equal(oldMutators, newMutators)) {
+        CPLUI_ControlContainer_Clear(g_ui.gameSetupResultContent.controlContainerMutators);
+        for (i = 0; i < ST_Array_Count(newMutators); i += 1) {
+            dc = CPLUI_ControlContainer_Append(
+                g_ui.gameSetupResultContent.controlContainerMutators,
+                c_triggerControlTypeButton,
+                "CoopPlusSelectionLayout/MutatorIconTemplate"
+            );
+            SetupMutatorImageFrame(dc, STGetString(ST_Array_ByIndex(newMutators, i)), 0);
+        }
+        CPLUI_ControlContainer_GridFormat(g_ui.gameSetupResultContent.controlContainerMutators, 5, 2, 0, 0, 0, 0);
+    }
+
+    if (force || (oldEnemyComposition != newEnemyComposition)) {
+        CPLUI_ControlContainer_Clear(g_ui.gameSetupResultContent.controlContainerEnemyComposition);
+        dc = CPLUI_ControlContainer_Append(
+            g_ui.gameSetupResultContent.controlContainerEnemyComposition,
+            c_triggerControlTypeButton,
+            "CoopPlusSelectionLayout/EnemyCompositionTemplate"
+        );
+        SetupEnemyCompositionFrame(dc, newEnemyComposition == "", newEnemyComposition);
+    }
+}
+
+static void TransitGameSetupIntention(
+    CP_Matchmaking oldMatchmaking, CP_Matchmaking newMatchmaking, int player, bool force
+) {
+    int playeridx = player - 1;
+
+    int oldDifficultyIntention = STGetInt(STR(oldMatchmaking, ".launcher.player[" + IntToString(playeridx) + "].difficultyIntention"));
+    int newDifficultyIntention = STGetInt(STR(newMatchmaking, ".launcher.player[" + IntToString(playeridx) + "].difficultyIntention"));
+    string oldDifficulty = STGetString(STR(oldMatchmaking, ".launcher.player[" + IntToString(playeridx) + "].difficulty"));
+    string newDifficulty = STGetString(STR(newMatchmaking, ".launcher.player[" + IntToString(playeridx) + "].difficulty"));
+
+    int oldMapIntention = STGetInt(STR(oldMatchmaking, ".launcher.player[" + IntToString(playeridx) + "].mapIntention"));
+    int newMapIntention = STGetInt(STR(newMatchmaking, ".launcher.player[" + IntToString(playeridx) + "].mapIntention"));
+    ST_Array oldMap = STGetArray(STR(oldMatchmaking, ".launcher.player[" + IntToString(playeridx) + "].mapList"));
+    ST_Array newMap = STGetArray(STR(newMatchmaking, ".launcher.player[" + IntToString(playeridx) + "].mapList"));
+
+    int oldMutatorsIntention = STGetInt(STR(oldMatchmaking, ".launcher.player[" + IntToString(playeridx) + "].mutatorsIntention"));
+    int newMutatorsIntention = STGetInt(STR(newMatchmaking, ".launcher.player[" + IntToString(playeridx) + "].mutatorsIntention"));
+    ST_Array oldMutators = STGetArray(STR(oldMatchmaking, ".launcher.player[" + IntToString(playeridx) + "].mutatorsList"));
+    ST_Array newMutators = STGetArray(STR(newMatchmaking, ".launcher.player[" + IntToString(playeridx) + "].mutatorsList"));
+
+    int oldEnemyCompositionIntention = STGetInt(STR(oldMatchmaking, ".launcher.player[" + IntToString(playeridx) + "].enemyCompositionIntention"));
+    int newEnemyCompositionIntention = STGetInt(STR(newMatchmaking, ".launcher.player[" + IntToString(playeridx) + "].enemyCompositionIntention"));
+    string oldEnemyComposition = STGetString(STR(oldMatchmaking, ".launcher.player[" + IntToString(playeridx) + "].enemyComposition"));
+    string newEnemyComposition = STGetString(STR(newMatchmaking, ".launcher.player[" + IntToString(playeridx) + "].enemyComposition"));
+
+    int i;
+    text msg;
+    text tooltip;
+    int dc;
+
+    if (force || (oldDifficultyIntention != newDifficultyIntention) || (oldDifficulty != newDifficulty)) {
+        DialogControlSetVisible(
+            g_ui.gameSetupIntentionPanel[playeridx].dcDifficulty, PlayerGroupAll(),
+            newDifficultyIntention != CP_c_playerIntentionNone
+        );
+        if (newDifficultyIntention == CP_c_playerIntentionSelect) {
+            DialogControlSetPropertyAsText(
+                g_ui.gameSetupIntentionContent[playeridx].dcDifficulty, c_triggerControlPropertyText, PlayerGroupAll(),
+                CP_Difficulty_GetName(newDifficulty)
+            );
+        }
+    }
+
+    if (force || (oldMapIntention != newMapIntention) || !ST_Array_Equal(oldMap, newMap)) {
+        DialogControlSetVisible(
+            g_ui.gameSetupIntentionPanel[playeridx].dcMap, PlayerGroupAll(),
+            newMapIntention != CP_c_playerIntentionNone
+        );
+        if (newMapIntention == CP_c_playerIntentionNone) {
+        }
+        else {
+            CPLUI_ControlContainer_Clear(g_ui.gameSetupIntentionContent[playeridx].controlContainerMap);
+
+            if (newMapIntention == CP_c_playerIntentionVeto) {
+                msg = ST_TextExpressionShortcut(
+                    "CoopPlus/Launcher/IntentionMapVeto", "N", IntToText(ST_Array_Count(newMap))
+                );
+
+                tooltip = CP_Map_GetName(STGetString(ST_Array_ByIndex(newMap, 0)));
+                for (i = 1; i < ST_Array_Count(newMap); i += 1) {
+                    tooltip += StringToText("<n/>") + CP_Map_GetName(STGetString(ST_Array_ByIndex(newMap, i)));
+                }
+                tooltip = ST_TextExpressionShortcut("CoopPlus/Launcher/IntentionMapVetoTooltip", "VETOLIST", tooltip);
+            }
+            else if (newMapIntention == CP_c_playerIntentionRevealRandom) {
+                if (ST_Array_Count(newMap) > 0) {
+                    msg = ST_TextExpressionShortcut(
+                        "CoopPlus/Launcher/IntentionMapRevealVeto", "N", IntToText(ST_Array_Count(newMap))
+                    );
+
+                    tooltip = CP_Map_GetName(STGetString(ST_Array_ByIndex(newMap, 0)));
+                    for (i = 1; i < ST_Array_Count(newMap); i += 1) {
+                        tooltip += StringToText("<n/>") + CP_Map_GetName(STGetString(ST_Array_ByIndex(newMap, i)));
+                    }
+                    tooltip = ST_TextExpressionShortcut(
+                        "CoopPlus/Launcher/IntentionMapVetoTooltip", "VETOLIST", tooltip
+                    );
+                }
+                else {
+                    msg = StringExternal("CoopPlus/Launcher/IntentionMapReveal");
+                }
+            }
+            else if (newMapIntention == CP_c_playerIntentionSelect) {
+                msg = CP_Map_GetName(STGetString(ST_Array_ByIndex(newMap, 0)));
+            }
+            else {
+                ST_Assert(false, "TransitGameSetupIntention(): invalid intention");
+            }
+
+            dc = CPLUI_ControlContainer_Append(
+                g_ui.gameSetupIntentionContent[playeridx].controlContainerMap,
+                c_triggerControlTypeButton,
+                "CoopPlusSelectionLayout/SimpleTextTemplate"
+            );
+            SetupSimpleTextFrame(dc, msg, tooltip);
+        }
+    }
+
+    if (force || (oldMutatorsIntention != newMutatorsIntention) || !ST_Array_Equal(oldMutators, newMutators)) {
+        DialogControlSetVisible(
+            g_ui.gameSetupIntentionPanel[playeridx].dcMutators, PlayerGroupAll(),
+            newMutatorsIntention != CP_c_playerIntentionNone
+        );
+        CPLUI_ControlContainer_Clear(g_ui.gameSetupIntentionContent[playeridx].controlContainerMutators);
+
+        if (newMutatorsIntention == CP_c_playerIntentionNone) {
+        }
+        else if (newMutatorsIntention == CP_c_playerIntentionVeto) {
+            msg = ST_TextExpressionShortcut(
+                "CoopPlus/Launcher/IntentionMutatorsVeto", "N", IntToText(ST_Array_Count(newMutators))
+            );
+
+            dc = CPLUI_ControlContainer_Append(
+                g_ui.gameSetupIntentionContent[playeridx].controlContainerMutators,
+                c_triggerControlTypeButton,
+                "CoopPlusSelectionLayout/SimpleTextTemplate"
+            );
+
+            tooltip = CP_Mutator_GetName(STGetString(ST_Array_ByIndex(newMutators, 0)));
+            for (i = 1; i < ST_Array_Count(newMutators); i += 1) {
+                tooltip += StringToText("<n/>") + CP_Mutator_GetName(STGetString(ST_Array_ByIndex(newMutators, i)));
+            }
+            tooltip = ST_TextExpressionShortcut("CoopPlus/Launcher/IntentionMutatorsVetoTooltip", "VETOLIST", tooltip);
+
+            SetupSimpleTextFrame(dc, msg, tooltip);
+        }
+        else if (newMutatorsIntention == CP_c_playerIntentionRevealRandom) {
+            if (ST_Array_Count(newMutators) > 0) {
+                msg = ST_TextExpressionShortcut(
+                    "CoopPlus/Launcher/IntentionMutatorsRevealVeto", "N", IntToText(ST_Array_Count(newMutators))
+                );
+
+                tooltip = CP_Mutator_GetName(STGetString(ST_Array_ByIndex(newMutators, 0)));
+                for (i = 1; i < ST_Array_Count(newMutators); i += 1) {
+                    tooltip += StringToText("<n/>") + CP_Mutator_GetName(STGetString(ST_Array_ByIndex(newMutators, i)));
+                }
+                tooltip = ST_TextExpressionShortcut(
+                    "CoopPlus/Launcher/IntentionMutatorsVetoTooltip", "VETOLIST", tooltip
+                );
+            }
+            else {
+                msg = StringExternal("CoopPlus/Launcher/IntentionMutatorsReveal");
+            }
+
+            dc = CPLUI_ControlContainer_Append(
+                g_ui.gameSetupIntentionContent[playeridx].controlContainerMutators,
+                c_triggerControlTypeButton,
+                "CoopPlusSelectionLayout/SimpleTextTemplate"
+            );
+            SetupSimpleTextFrame(dc, msg, tooltip);
+        }
+        else if (newMutatorsIntention == CP_c_playerIntentionSelect) {
+            for (i = 0; i < ST_Array_Count(newMutators); i += 1) {
+                dc = CPLUI_ControlContainer_Append(
+                    g_ui.gameSetupIntentionContent[playeridx].controlContainerMutators,
+                    c_triggerControlTypeButton,
+                    "CoopPlusSelectionLayout/MutatorIconTemplate"
+                );
+                SetupMutatorImageFrame(dc, STGetString(ST_Array_ByIndex(newMutators, i)), 0);
+            }
+            if (ST_Array_Count(newMutators) <= 5) {
+                CPLUI_ControlContainer_GridFormat(
+                    g_ui.gameSetupIntentionContent[playeridx].controlContainerMutators, 5, 1,
+                    (400 - ST_Array_Count(newMutators) * 80) / 2, 60, 0, 0
+                );
+            }
+            else {
+                CPLUI_ControlContainer_GridFormat(
+                    g_ui.gameSetupIntentionContent[playeridx].controlContainerMutators, 5, 2,
+                    0, 20, 0, 0
+                );
+            }
+        }
+        else {
+            ST_Assert(false, "TransitGameSetupIntention(): invalid intention");
+        }
+    }
+
+    if (
+        force
+        || (oldEnemyCompositionIntention != newEnemyCompositionIntention)
+        || (oldEnemyComposition != newEnemyComposition)
+    ) {
+        DialogControlSetVisible(
+            g_ui.gameSetupIntentionPanel[playeridx].dcEnemyComposition, PlayerGroupAll(),
+            newEnemyCompositionIntention != CP_c_playerIntentionNone
+        );
+        CPLUI_ControlContainer_Clear(g_ui.gameSetupIntentionContent[playeridx].controlContainerEnemyComposition);
+
+        if (newEnemyCompositionIntention == CP_c_playerIntentionNone) {
+        }
+        else if (newEnemyCompositionIntention == CP_c_playerIntentionSelect) {
+            dc = CPLUI_ControlContainer_Append(
+                g_ui.gameSetupIntentionContent[playeridx].controlContainerEnemyComposition,
+                c_triggerControlTypeButton,
+                "CoopPlusSelectionLayout/EnemyCompositionTemplate"
+            );
+            SetupEnemyCompositionFrame(dc, false, newEnemyComposition);
+            CPLUI_ControlContainer_GridFormat(
+                g_ui.gameSetupIntentionContent[playeridx].controlContainerEnemyComposition, 1, 1,
+                0, 20, 0, 0
+            );
+        }
+        else if (newEnemyCompositionIntention == CP_c_playerIntentionRevealRandom) {
+            msg = StringExternal("CoopPlus/Launcher/IntentionEnemyCompositionReveal");
+            dc = CPLUI_ControlContainer_Append(
+                g_ui.gameSetupIntentionContent[playeridx].controlContainerEnemyComposition,
+                c_triggerControlTypeButton,
+                "CoopPlusSelectionLayout/SimpleTextTemplate"
+            );
+            SetupSimpleTextFrame(dc, msg, tooltip);
+        }
+        else {
+            ST_Assert(false, "TransitGameSetupIntention(): invalid intention");
+        }
+    }
+}
+
+static void TransitPlayerState(CP_Matchmaking oldMatchmaking, CP_Matchmaking newMatchmaking, bool force) {
+    int i;
+    text[2] playerName;
+    bool[2] oldPlayerQuitted;
+    bool[2] newPlayerQuitted;
+    string[2] oldCommander;
+    string[2] newCommander;
+    bool[2] oldReady;
+    bool[2] newReady;
+    text[2] fontPostfix;
+    string state;
+    text sub;
+
+    for (i = 0; i < 2; i += 1) {
+        if (PlayerStatus(i + 1) == c_playerStatusUnused) {
+            playerName[i] = StringExternal("UI/LoadingPlayerCard/ComputerPlayerName");
+        }
+        else {
+            playerName[i] = PlayerName(i + 1);
+        }
+        oldPlayerQuitted[i] = STGetBool(STR(oldMatchmaking, ".result.playerQuitted[" + IntToString(i) + "]"));
+        newPlayerQuitted[i] = STGetBool(STR(newMatchmaking, ".result.playerQuitted[" + IntToString(i) + "]"));
+        oldCommander[i] = STGetString(STR(oldMatchmaking, ".result.commander[" + IntToString(i) + "]"));
+        newCommander[i] = STGetString(STR(newMatchmaking, ".result.commander[" + IntToString(i) + "]"));
+        oldReady[i] = STGetBool(STR(oldMatchmaking, ".launcher.player[" + IntToString(i) + "].ready"));
+        newReady[i] = STGetBool(STR(newMatchmaking, ".launcher.player[" + IntToString(i) + "].ready"));
+    }
+
+    for (i = 0; i < 2; i += 1) {
+        if (force || (oldReady[i] != newReady[i]) || (oldReady[1 - i] != newReady[1 - i])) {
+            if (newReady[i]) {
+                if (newReady[1 - i]) { state = "BothReady"; }
+                else { state = "Waiting"; }
+            }
+            else { state = "NotReady"; }
+
+            DialogControlSetAnimationState(g_ui.dcReadyButton[i], PlayerGroupAll(), "ReadyState", state);
+            DialogControlSetPropertyAsBool(
+                g_ui.dcReadyButton[i], c_triggerControlPropertyEnabled, PlayerGroupSingle(i + 1), state != "BothReady"
+            );
+            if (((oldReady[i] != newReady[i]) || (oldReady[1 - i] != newReady[1 - i])) && (state == "BothReady")) {
+                SoundPlayForPlayer(SoundLink("UI_BnetGameFound", 0), i + 1, PlayerGroupSingle(i + 1), 80, 0);
+            }
+        }
+
+        if (
+            force
+            || (oldPlayerQuitted[i] != newPlayerQuitted[i])
+            || (oldCommander[i] != newCommander[i])
+        ) {
+            sub = c_emptyText;
+            if (newPlayerQuitted[i]) {
+                sub += StringToText("(") + StringExternal("UI/PartyPanel/StatusOffline") + StringToText(") ");
+            }
+            if (newCommander[i] == "") { sub += CP_Commander_GetNameRandom(); }
+            else { sub += CP_Commander_GetName(newCommander[i]); }
+            
+            DialogControlSetPropertyAsText(g_ui.dcPlayerSub[i], c_triggerControlPropertyText, PlayerGroupAll(), sub);
+        }
+
+        if (force || (oldCommander[i] != newCommander[i]) || (oldReady[i] != newReady[i])) {
+            DialogControlSetPropertyAsBool(
+                g_ui.dcLevelButton[i], c_triggerControlPropertyAcceptMouseTarget, PlayerGroupSingle(i + 1),
+                (newCommander[i] != "") && !newReady[i]
+            );
+        }
+    }
+}
+
+void CPLUI_UpdateGameSetup(CP_Matchmaking matchmaking, bool forceAllTransitionEffects) {
+    text mapName;
+    string mapImage;
+    int i;
+
+    TransitNavigation(g_lastMatchmaking, matchmaking, forceAllTransitionEffects);
+    TransitCutscenes(g_lastMatchmaking, matchmaking, forceAllTransitionEffects);
+    TransitGameSetupResult(g_lastMatchmaking, matchmaking, forceAllTransitionEffects);
+    for (i = 0; i < 2; i += 1) {
+        TransitGameSetupIntention(g_lastMatchmaking, matchmaking, i + 1, forceAllTransitionEffects);
+        TransitCommanderContainer(g_lastMatchmaking, matchmaking, i + 1, forceAllTransitionEffects);
+    }
+    TransitPlayerState(g_lastMatchmaking, matchmaking, forceAllTransitionEffects);
+
+    CP_Matchmaking_Copy(g_lastMatchmaking, matchmaking);
+}
+
+void CPLUI_Tooltip(int player, text msg) {
+    playergroup pg = PlayerGroupSingle(player);
+    int playeridx = player - 1;
+
+    DialogControlSetPropertyAsText(g_ui.dcGlobalTooltipContent[playeridx], c_triggerControlPropertyText, pg, msg);
+    DialogControlSendAnimationEvent(g_ui.dcGlobalTooltip[playeridx], pg, "TooltipShown");
+}
+
+static void SelectionMapToggleVeto(int player, CP_Map map) {
+    int playeridx = player - 1;
+    ST_Array mapList = STGetArray(STR(g_ui.selectionDialogTempData[playeridx], ".mapList"));
+    int index = ST_FindStringFromStringArray(mapList, map);
+    int dc;
+    int count;
+
+    if (index == -1) {
+        if (ST_Array_Count(mapList) >= CP_c_maxMapBanCount) {
+            return;
+        }
+
+        STSetString(ST_Array_BackInserter(mapList), map);
+        dc = STGetInt(STR(g_ui.selectionDialogTempData[playeridx], ".mapToDc." + map));
+        DialogControlSetAnimationState(dc, PlayerGroupSingle(player), "SelectionState", "Veto");
+    }
+    else {
+        STR_DeleteFromParent(ST_Array_ByIndex(mapList, index));
+
+        dc = STGetInt(STR(g_ui.selectionDialogTempData[playeridx], ".mapToDc." + map));
+        DialogControlSetAnimationState(dc, PlayerGroupSingle(player), "SelectionState", "Unselected");
+    }
+
+    count = ST_Array_Count(mapList);
+
+    DialogControlSetPropertyAsText(
+        STGetInt(STR(g_ui.selectionDialogTempData[playeridx], ".behaviorToDc.veto")),
+        c_triggerControlPropertyText, PlayerGroupSingle(player),
+        ST_TextExpressionShortcut("CoopPlus/Launcher/SelectionDialogButtonMapVeto", "N", IntToText(count))
+    );
+
+    DialogControlSetPropertyAsText(
+        STGetInt(STR(g_ui.selectionDialogTempData[playeridx], ".behaviorToDc.reveal")),
+        c_triggerControlPropertyText, PlayerGroupSingle(player),
+        ST_TextExpressionShortcut("CoopPlus/Launcher/SelectionDialogButtonMapReveal", "N", IntToText(count))
+    );
+}
+
+bool CPLUI_OnSelectionMapClicked(bool testConds, bool runActions) {
+    int player;
+    int playeridx;
+    int triggeringDc;
+    int i;
+    ST_Array mapList;
+    CP_Map map;
+    
+    if (!runActions) {
+        return true;
+    }
+
+    player = EventPlayer();
+    playeridx = player - 1;
+    triggeringDc = EventDialogControl();
+
+    map = STGetString(STR(g_ui.selectionDialogTempData[playeridx], ".dcToMap." + IntToString(triggeringDc)));
+
+    if (STGetBool(STR(g_ui.selectionDialogTempData[playeridx], ".instantMode"))) {
+        CloseSelectionDialog(player);
+
+        mapList = ST_Array_Create();
+        STSetString(ST_Array_BackInserter(mapList), map);
+        g_callbacks.onMapSelected(player, CP_c_playerIntentionSelect, mapList);
+        ST_Array_Destroy(mapList, false);
+    }
+    else {
+        SelectionMapToggleVeto(player, map);
+    }
+
+    return true;
+}
+
+bool CPLUI_OnSelectionMapButton(bool testConds, bool runActions) {
+    int player;
+    int playeridx;
+    int triggeringDc;
+    string behavior;
+    ST_Array mapList;
+    
+    if (!runActions) {
+        return true;
+    }
+
+    player = EventPlayer();
+    playeridx = player - 1;
+    triggeringDc = EventDialogControl();
+
+    behavior = STGetString(STR(g_ui.selectionDialogTempData[playeridx], ".dcToBehavior." + IntToString(triggeringDc)));
+    mapList = STGetArray(STR(g_ui.selectionDialogTempData[playeridx], ".mapList"));
+
+    if (behavior == "cancel") {
+    }
+    else if (behavior == "veto") {
+        if (ST_Array_Count(mapList) == 0) {
+            g_callbacks.onMapSelected(player, CP_c_playerIntentionNone, mapList);
+        }
+        else {
+            g_callbacks.onMapSelected(player, CP_c_playerIntentionVeto, mapList);
+        }
+    }
+    else if (behavior == "reveal") {
+        g_callbacks.onMapSelected(player, CP_c_playerIntentionRevealRandom, mapList);
+    }
+
+    CloseSelectionDialog(player);
+    
+    return true;
+}
+
+void CPLUI_MapSelection(
+    int player, bool select, bool veto, bool revealRandom, int currentIntention, ST_Array currentMapList
+) {
+    int playeridx = player - 1;
+    text title;
+    int i;
+    int count;
+    int buttonCount;
+    int dc;
+    CP_Map map;
+    trigger triggerMapClicked;
+    trigger triggerMapButton;
+
+    if (veto || revealRandom) {
+        title = ST_TextExpressionShortcut(
+            "CoopPlus/Launcher/SelectionDialogTitleMapVeto", "N", IntToText(CP_c_maxMapBanCount)
+        );
+    }
+    else if (select) {
+        title = StringExternal("CoopPlus/Launcher/SelectionDialogTitleMapSelect");
+    }
+    else {
+        ST_Assert(false, "CPLUI_MapSelection(): unknown mode");
+    }
+
+    // 300 x 169 in 4 x 4 with 5 x 5 spacing
+    if (!ShowSelectionDialog(player, 1215, 691, veto || revealRandom, title)) {
+        // Other selction window is already opened
+        return;
+    }
+
+    STSetBool(STR(g_ui.selectionDialogTempData[playeridx], ".instantMode"), !(veto || revealRandom));
+    STSetObject(STR(g_ui.selectionDialogTempData[playeridx], ".dcToMap"), ST_Object_Create());
+    STSetObject(STR(g_ui.selectionDialogTempData[playeridx], ".mapToDc"), ST_Object_Create());
+    STSetObject(STR(g_ui.selectionDialogTempData[playeridx], ".dcToBehavior"), ST_Object_Create());
+    STSetObject(STR(g_ui.selectionDialogTempData[playeridx], ".behaviorToDc"), ST_Object_Create());
+
+    triggerMapClicked = TriggerCreate("CPLUI_OnSelectionMapClicked");
+    STSetTrigger(ST_Array_BackInserter(g_ui.triggerSelectionActiveArray[playeridx]), triggerMapClicked);
+    
+    for (i = 0; i < CP_Map_Count(); i += 1) {
+        map = CP_Map_FromIndex(i);
+        dc = CPLUI_ControlContainer_Append(
+            g_ui.controlContainerContent[playeridx],
+            c_triggerControlTypeButton,
+            "CoopPlusSelectionLayout/MapImageTemplate"
+        );
+        SetupMapImageFrame(dc, false, map);
+        STSetString(STR(g_ui.selectionDialogTempData[playeridx], ".dcToMap." + IntToString(dc)), map);
+        STSetInt(STR(g_ui.selectionDialogTempData[playeridx], ".mapToDc." + map), dc);
+        TriggerAddEventDialogControl(triggerMapClicked, player, dc, c_triggerControlEventTypeClick);
+
+        if (
+            select
+            && (currentIntention == CP_c_playerIntentionSelect)
+            && (STGetString(ST_Array_ByIndex(currentMapList, 0)) == map)
+        ) {
+            DialogControlSetAnimationState(dc, PlayerGroupSingle(player), "SelectionState", "Selected");
+        }
+    }
+
+    CPLUI_ControlContainer_GridFormat(g_ui.controlContainerContent[playeridx], 4, 4, 0, 0, 5, 5);
+
+    if (veto || revealRandom) {
+        triggerMapButton = TriggerCreate("CPLUI_OnSelectionMapButton");
+        STSetTrigger(ST_Array_BackInserter(g_ui.triggerSelectionActiveArray[playeridx]), triggerMapButton);
+    
+        buttonCount = 0;
+        if (veto) {
+            dc = CPLUI_ControlContainer_Append(
+                g_ui.controlContainerButton[playeridx],
+                c_triggerControlTypeButton,
+                "CoopPlusSelectionLayout/AlternateButtonTemplate"
+            );
+            DialogControlSetPropertyAsText(
+                dc, c_triggerControlPropertyText, PlayerGroupSingle(player),
+                ST_TextExpressionShortcut("CoopPlus/Launcher/SelectionDialogButtonMapVeto", "N", StringToText("0"))
+            );
+            STSetString(STR(g_ui.selectionDialogTempData[playeridx], ".dcToBehavior." + IntToString(dc)), "veto");
+            STSetInt(STR(g_ui.selectionDialogTempData[playeridx], ".behaviorToDc.veto"), dc);
+            TriggerAddEventDialogControl(triggerMapButton, player, dc, c_triggerControlEventTypeClick);
+            buttonCount += 1;
+        }
+        if (revealRandom) {
+            dc = CPLUI_ControlContainer_Append(
+                g_ui.controlContainerButton[playeridx],
+                c_triggerControlTypeButton,
+                "CoopPlusSelectionLayout/AlternateButtonTemplate"
+            );
+            DialogControlSetPropertyAsText(
+                dc, c_triggerControlPropertyText, PlayerGroupSingle(player),
+                ST_TextExpressionShortcut("CoopPlus/Launcher/SelectionDialogButtonMapReveal", "N", StringToText("0"))
+            );
+            STSetString(STR(g_ui.selectionDialogTempData[playeridx], ".dcToBehavior." + IntToString(dc)), "reveal");
+            STSetInt(STR(g_ui.selectionDialogTempData[playeridx], ".behaviorToDc.reveal"), dc);
+            TriggerAddEventDialogControl(triggerMapButton, player, dc, c_triggerControlEventTypeClick);
+            buttonCount += 1;
+        }
+
+        dc = CPLUI_ControlContainer_Append(
+            g_ui.controlContainerButton[playeridx],
+            c_triggerControlTypeButton,
+            "CoopPlusSelectionLayout/AlternateButtonTemplate"
+        );
+        DialogControlSetPropertyAsText(
+            dc, c_triggerControlPropertyText, PlayerGroupSingle(player),
+            StringExternal("CoopPlus/Launcher/SelectionDialogButtonCancel")
+        );
+        STSetString(STR(g_ui.selectionDialogTempData[playeridx], ".dcToBehavior." + IntToString(dc)), "cancel");
+        STSetInt(STR(g_ui.selectionDialogTempData[playeridx], ".behaviorToDc.cancel"), dc);
+        TriggerAddEventDialogControl(triggerMapButton, player, dc, c_triggerControlEventTypeClick);
+        buttonCount += 1;
+
+        if (buttonCount == 2) {
+            CPLUI_ControlContainer_GridFormat(
+                g_ui.controlContainerButton[playeridx], 3, 1, 0, 0, 1215 - (288 * 2), 0
+            );
+        }
+        else {
+            CPLUI_ControlContainer_GridFormat(
+                g_ui.controlContainerButton[playeridx], 3, 1, 0, 0, (1215 - (288 * 3)) / 2, 0
+            );
+        }
+
+        STSetArray(STR(g_ui.selectionDialogTempData[playeridx], ".mapList"), ST_Array_Create());
+        if (
+            (currentIntention == CP_c_playerIntentionVeto) || (currentIntention == CP_c_playerIntentionRevealRandom)
+        ) {
+            count = ST_Array_Count(currentMapList);
+            for (i = 0; i < count; i += 1) {
+                SelectionMapToggleVeto(player, STGetString(ST_Array_ByIndex(currentMapList, i)));
+            }
+        }
+    }
+}
+
+static void SelectionMutatorUpdateDialog(int player) {
+    int playeridx = player - 1;
+    bool isSelection = STGetBool(STR(g_ui.selectionDialogTempData[playeridx], ".isSelection"));
+    ST_Array mutatorsList = STGetArray(STR(g_ui.selectionDialogTempData[playeridx], ".mutatorsList"));
+    int count = ST_Array_Count(mutatorsList);
+    int i;
+    int dc;
+    CP_Mutator mutator;
+    ST_Ref ref;
+    CPLUI_ControlContainer controlContainerCurrentMutatorSelection;
+    trigger triggerCurrentMutatorClicked;
+
+    // Mutators
+    for (i = 0; i < CP_Mutator_Count(); i += 1) {
+        mutator = CP_Mutator_FromIndex(i);
+        ref = STR(g_ui.selectionDialogTempData[playeridx], ".mutatorToDc." + mutator);
+        if (!STR_Exists(ref)) {
+            continue;
+        }
+        DialogControlSetAnimationState(STGetInt(ref), PlayerGroupSingle(player), "SelectionState", "Unselected");
+    }
+    for (i = 0; i < count; i += 1) {
+        mutator = STGetString(ST_Array_ByIndex(mutatorsList, i));
+        ref = STR(g_ui.selectionDialogTempData[playeridx], ".mutatorToDc." + mutator);
+        if (!STR_Exists(ref)) {
+            continue;
+        }
+        dc = STGetInt(ref);
+        if (isSelection) {
+            DialogControlSetAnimationState(dc, PlayerGroupSingle(player), "SelectionState", "Selected");
+        }
+        else {
+            DialogControlSetAnimationState(dc, PlayerGroupSingle(player), "SelectionState", "Veto");
+        }
+    }
+
+    // Buttons
+    ref = STR(g_ui.selectionDialogTempData[playeridx], ".behaviorToDc.select");
+    if (STR_Exists(ref)) {
+        DialogControlSetPropertyAsText(
+            STGetInt(ref), c_triggerControlPropertyText, PlayerGroupSingle(player),
+            ST_TextExpressionShortcut("CoopPlus/Launcher/SelectionDialogButtonMutatorSelect", "N", IntToText(count))
+        );
+    }
+
+    ref = STR(g_ui.selectionDialogTempData[playeridx], ".behaviorToDc.veto");
+    if (STR_Exists(ref)) {
+        DialogControlSetPropertyAsText(
+            STGetInt(ref), c_triggerControlPropertyText, PlayerGroupSingle(player),
+            ST_TextExpressionShortcut("CoopPlus/Launcher/SelectionDialogButtonMutatorVeto", "N", IntToText(count))
+        );
+    }
+
+    ref = STR(g_ui.selectionDialogTempData[playeridx], ".behaviorToDc.reveal");
+    if (STR_Exists(ref)) {
+        DialogControlSetPropertyAsText(
+            STGetInt(ref), c_triggerControlPropertyText, PlayerGroupSingle(player),
+            ST_TextExpressionShortcut("CoopPlus/Launcher/SelectionDialogButtonMutatorReveal", "N", IntToText(count))
+        );
+    }
+
+    ref = STR(g_ui.selectionDialogTempData[playeridx], ".controlContainerCurrentMutatorSelection");
+    if (STR_Exists(ref)) {
+        controlContainerCurrentMutatorSelection = STGetObject(ref);
+        triggerCurrentMutatorClicked = STGetTrigger(
+            STR(g_ui.selectionDialogTempData[playeridx], ".triggerCurrentMutatorClicked")
+        );
+
+        CPLUI_ControlContainer_Clear(controlContainerCurrentMutatorSelection);
+        ST_Object_Clear(STGetObject(STR(g_ui.selectionDialogTempData[playeridx], ".dcToCurrentMutatorIndex")), false);
+
+        for (i = 0; i < count; i += 1) {
+            mutator = STGetString(ST_Array_ByIndex(mutatorsList, i));
+            dc = CPLUI_ControlContainer_Append(
+                controlContainerCurrentMutatorSelection,
+                c_triggerControlTypeButton,
+                "CoopPlusSelectionLayout/MutatorIconTemplate"
+            );
+            SetupMutatorImageFrame(dc, mutator, 80);
+
+            STSetInt(STR(g_ui.selectionDialogTempData[playeridx], ".dcToCurrentMutatorIndex." + IntToString(dc)), i);
+            TriggerAddEventDialogControl(triggerCurrentMutatorClicked, player, dc, c_triggerControlEventTypeClick);
+        }
+
+        CPLUI_ControlContainer_GridFormat(
+            controlContainerCurrentMutatorSelection, 10, 1, (800 - count * 80) / 2, 0, 0, 0
+        );
+    }
+}
+
+static void SelectionMutatorAddSelection(int player, CP_Mutator mutator) {
+    int playeridx = player - 1;
+    ST_Array mutatorsList = STGetArray(STR(g_ui.selectionDialogTempData[playeridx], ".mutatorsList"));
+
+    if (ST_Array_Count(mutatorsList) >= CP_c_maxMutatorSelectCount) {
+        return;
+    }
+
+    if ((ST_FindStringFromStringArray(mutatorsList, mutator) != -1) && !CP_Mutator_GetCustomAllowMultiple(mutator)) {
+        return;
+    }
+
+    STSetString(ST_Array_BackInserter(mutatorsList), mutator);
+    SelectionMutatorUpdateDialog(player);
+}
+
+static void SelectionMutatorRemoveSelection(int player, int index) {
+    int playeridx = player - 1;
+    ST_Array mutatorsList = STGetArray(STR(g_ui.selectionDialogTempData[playeridx], ".mutatorsList"));
+
+    if (index >= ST_Array_Count(mutatorsList)) {
+        return;
+    }
+
+    ST_Array_DeleteRange(mutatorsList, index, index + 1);
+    SelectionMutatorUpdateDialog(player);
+}
+
+static void SelectionMutatorToggleVeto(int player, CP_Mutator mutator) {
+    int playeridx = player - 1;
+    ST_Array mutatorsList = STGetArray(STR(g_ui.selectionDialogTempData[playeridx], ".mutatorsList"));
+    int index = ST_FindStringFromStringArray(mutatorsList, mutator);
+
+    if (index == -1) {
+        if (ST_Array_Count(mutatorsList) >= CP_c_maxMutatorBanCount) {
+            return;
+        }
+
+        STSetString(ST_Array_BackInserter(mutatorsList), mutator);
+    }
+    else {
+        ST_Array_DeleteRange(mutatorsList, index, index + 1);
+    }
+
+    SelectionMutatorUpdateDialog(player);
+}
+
+bool CPLUI_OnSelectionMutatorClicked(bool testConds, bool runActions) {
+    int player;
+    int playeridx;
+    int triggeringDc;
+    CP_Mutator mutator;
+    
+    if (!runActions) {
+        return true;
+    }
+
+    player = EventPlayer();
+    playeridx = player - 1;
+    triggeringDc = EventDialogControl();
+
+    mutator = STGetString(STR(g_ui.selectionDialogTempData[playeridx], ".dcToMutator." + IntToString(triggeringDc)));
+
+    if (STGetBool(STR(g_ui.selectionDialogTempData[playeridx], ".isSelection"))) {
+        SelectionMutatorAddSelection(player, mutator);
+    }
+    else {
+        SelectionMutatorToggleVeto(player, mutator);
+    }
+
+    return true;
+}
+
+bool CPLUI_OnSelectionCurrentMutatorClicked(bool testConds, bool runActions) {
+    int player;
+    int playeridx;
+    int triggeringDc;
+    int index;
+    
+    if (!runActions) {
+        return true;
+    }
+
+    player = EventPlayer();
+    playeridx = player - 1;
+    triggeringDc = EventDialogControl();
+
+    index = STGetInt(
+        STR(g_ui.selectionDialogTempData[playeridx], ".dcToCurrentMutatorIndex." + IntToString(triggeringDc))
+    );
+    SelectionMutatorRemoveSelection(player, index);
+
+    return true;
+}
+
+bool CPLUI_OnSelectionMutatorButton(bool testConds, bool runActions) {
+    int player;
+    int playeridx;
+    int triggeringDc;
+    string behavior;
+    ST_Array mutatorsList;
+    
+    if (!runActions) {
+        return true;
+    }
+
+    player = EventPlayer();
+    playeridx = player - 1;
+    triggeringDc = EventDialogControl();
+
+    behavior = STGetString(STR(g_ui.selectionDialogTempData[playeridx], ".dcToBehavior." + IntToString(triggeringDc)));
+    mutatorsList = STGetArray(STR(g_ui.selectionDialogTempData[playeridx], ".mutatorsList"));
+
+    if (behavior == "cancel") {
+    }
+    else if (behavior == "select") {
+        if (ST_Array_Count(mutatorsList) == 0) {
+            g_callbacks.onMutatorSelected(player, CP_c_playerIntentionNone, mutatorsList);
+        }
+        else {
+            g_callbacks.onMutatorSelected(player, CP_c_playerIntentionSelect, mutatorsList);
+        }
+    }
+    else if (behavior == "veto") {
+        if (ST_Array_Count(mutatorsList) == 0) {
+            g_callbacks.onMutatorSelected(player, CP_c_playerIntentionNone, mutatorsList);
+        }
+        else {
+            g_callbacks.onMutatorSelected(player, CP_c_playerIntentionVeto, mutatorsList);
+        }
+    }
+    else if (behavior == "reveal") {
+        if (ST_Array_Count(mutatorsList) == 0) {
+            g_callbacks.onMutatorSelected(player, CP_c_playerIntentionNone, mutatorsList);
+        }
+        else {
+            g_callbacks.onMutatorSelected(player, CP_c_playerIntentionRevealRandom, mutatorsList);
+        }
+    }
+    
+    CloseSelectionDialog(player);
+    
+    return true;
+}
+
+void CPLUI_MutatorSelection(
+    int player, bool select, bool veto, bool revealRandom, int currentIntention, ST_Array currentMutatorsList
+) {
+    int playeridx = player - 1;
+    text title;
+    int i;
+    int count;
+    int buttonCount;
+    int dc;
+    CP_Mutator mutator;
+    trigger triggerMutatorClicked;
+    trigger triggerMutatorButton;
+    trigger triggerCurrentMutatorClicked;
+
+    if (veto || revealRandom) {
+        title = ST_TextExpressionShortcut(
+            "CoopPlus/Launcher/SelectionDialogTitleMutatorVeto", "N", IntToText(CP_c_maxMutatorBanCount)
+        );
+    }
+    else if (select) {
+        title = StringExternal("CoopPlus/Launcher/SelectionDialogTitleMutatorSelect");
+    }
+    else {
+        ST_Assert(false, "CPLUI_MutatorSelection(): unknown mode");
+    }
+
+    // 120 x 120 in 15 x 6 grid with 5 x 5 spacing
+    if (!ShowSelectionDialog(player, 1870, 745, true, title)) {
+        // Other selction window is already opened
+        return;
+    }
+
+    STSetBool(STR(g_ui.selectionDialogTempData[playeridx], ".isSelection"), select);
+    STSetObject(STR(g_ui.selectionDialogTempData[playeridx], ".dcToMutator"), ST_Object_Create());
+    STSetObject(STR(g_ui.selectionDialogTempData[playeridx], ".mutatorToDc"), ST_Object_Create());
+    STSetObject(STR(g_ui.selectionDialogTempData[playeridx], ".dcToBehavior"), ST_Object_Create());
+    STSetObject(STR(g_ui.selectionDialogTempData[playeridx], ".behaviorToDc"), ST_Object_Create());
+    STSetArray(STR(g_ui.selectionDialogTempData[playeridx], ".mutatorsList"), ST_Array_Create());
+
+    triggerMutatorClicked = TriggerCreate("CPLUI_OnSelectionMutatorClicked");
+    STSetTrigger(ST_Array_BackInserter(g_ui.triggerSelectionActiveArray[playeridx]), triggerMutatorClicked);
+    
+    for (i = 0; i < CP_Mutator_Count(); i += 1) {
+        mutator = CP_Mutator_FromIndex(i);
+        if (CP_Mutator_GetUnfinished(mutator)) {
+            continue;
+        }
+        
+        dc = CPLUI_ControlContainer_Append(
+            g_ui.controlContainerContent[playeridx],
+            c_triggerControlTypeButton,
+            "CoopPlusSelectionLayout/MutatorIconTemplate"
+        );
+        SetupMutatorImageFrame(dc, mutator, 120);
+        STSetString(STR(g_ui.selectionDialogTempData[playeridx], ".dcToMutator." + IntToString(dc)), mutator);
+        STSetInt(STR(g_ui.selectionDialogTempData[playeridx], ".mutatorToDc." + mutator), dc);
+        TriggerAddEventDialogControl(triggerMutatorClicked, player, dc, c_triggerControlEventTypeClick);
+    }
+
+    CPLUI_ControlContainer_GridFormat(g_ui.controlContainerContent[playeridx], 15, 6, 0, 0, 5, 5);
+
+    triggerMutatorButton = TriggerCreate("CPLUI_OnSelectionMutatorButton");
+    STSetTrigger(ST_Array_BackInserter(g_ui.triggerSelectionActiveArray[playeridx]), triggerMutatorButton);
+
+    if (select) {
+        dc = CPLUI_ControlContainer_Append(
+            g_ui.controlContainerButton[playeridx],
+            c_triggerControlTypeButton,
+            "CoopPlusSelectionLayout/AlternateButtonTemplate"
+        );
+        DialogControlSetPropertyAsText(
+            dc, c_triggerControlPropertyText, PlayerGroupSingle(player),
+            ST_TextExpressionShortcut("CoopPlus/Launcher/SelectionDialogButtonMutatorSelect", "N", StringToText("0"))
+        );
+        STSetString(STR(g_ui.selectionDialogTempData[playeridx], ".dcToBehavior." + IntToString(dc)), "select");
+        STSetInt(STR(g_ui.selectionDialogTempData[playeridx], ".behaviorToDc.select"), dc);
+        TriggerAddEventDialogControl(triggerMutatorButton, player, dc, c_triggerControlEventTypeClick);
+
+        triggerCurrentMutatorClicked = TriggerCreate("CPLUI_OnSelectionCurrentMutatorClicked");
+        STSetTrigger(ST_Array_BackInserter(g_ui.triggerSelectionActiveArray[playeridx]), triggerCurrentMutatorClicked);
+        STSetTrigger(
+            STR(g_ui.selectionDialogTempData[playeridx], ".triggerCurrentMutatorClicked"), triggerCurrentMutatorClicked
+        );
+        STSetObject(STR(g_ui.selectionDialogTempData[playeridx], ".dcToCurrentMutatorIndex"), ST_Object_Create());
+
+        dc = CPLUI_ControlContainer_Append(
+            g_ui.controlContainerButton[playeridx],
+            c_triggerControlTypePanel,
+            "CoopPlusSelectionLayout/SelectionDialogCurrentMutatorSelectionTemplate"
+        );
+        STSetObject(
+            STR(g_ui.selectionDialogTempData[playeridx], ".controlContainerCurrentMutatorSelection"),
+            CPLUI_ControlContainer_Create(dc)
+        );
+
+        dc = CPLUI_ControlContainer_Append(
+            g_ui.controlContainerButton[playeridx],
+            c_triggerControlTypeButton,
+            "CoopPlusSelectionLayout/AlternateButtonTemplate"
+        );
+        DialogControlSetPropertyAsText(
+            dc, c_triggerControlPropertyText, PlayerGroupSingle(player),
+            StringExternal("CoopPlus/Launcher/SelectionDialogButtonCancel")
+        );
+        STSetString(STR(g_ui.selectionDialogTempData[playeridx], ".dcToBehavior." + IntToString(dc)), "cancel");
+        STSetInt(STR(g_ui.selectionDialogTempData[playeridx], ".behaviorToDc.cancel"), dc);
+        TriggerAddEventDialogControl(triggerMutatorButton, player, dc, c_triggerControlEventTypeClick);
+        
+        CPLUI_ControlContainer_GridFormat(
+            g_ui.controlContainerButton[playeridx], 3, 1, 0, 0, (1870 - 288 - 800 - 288) / 2, 0
+        );
+
+        if (currentIntention == CP_c_playerIntentionSelect) {
+            count = ST_Array_Count(currentMutatorsList);
+            for (i = 0; i < count; i += 1) {
+                SelectionMutatorAddSelection(player, STGetString(ST_Array_ByIndex(currentMutatorsList, i)));
+            }
+        }
+    }
+    else {
+        buttonCount = 0;
+        if (veto) {
+            dc = CPLUI_ControlContainer_Append(
+                g_ui.controlContainerButton[playeridx],
+                c_triggerControlTypeButton,
+                "CoopPlusSelectionLayout/AlternateButtonTemplate"
+            );
+            DialogControlSetPropertyAsText(
+                dc, c_triggerControlPropertyText, PlayerGroupSingle(player),
+                ST_TextExpressionShortcut("CoopPlus/Launcher/SelectionDialogButtonMutatorVeto", "N", StringToText("0"))
+            );
+            STSetString(STR(g_ui.selectionDialogTempData[playeridx], ".dcToBehavior." + IntToString(dc)), "veto");
+            STSetInt(STR(g_ui.selectionDialogTempData[playeridx], ".behaviorToDc.veto"), dc);
+            TriggerAddEventDialogControl(triggerMutatorButton, player, dc, c_triggerControlEventTypeClick);
+            buttonCount += 1;
+        }
+        if (revealRandom) {
+            dc = CPLUI_ControlContainer_Append(
+                g_ui.controlContainerButton[playeridx],
+                c_triggerControlTypeButton,
+                "CoopPlusSelectionLayout/AlternateButtonTemplate"
+            );
+            DialogControlSetPropertyAsText(
+                dc, c_triggerControlPropertyText, PlayerGroupSingle(player),
+                ST_TextExpressionShortcut(
+                    "CoopPlus/Launcher/SelectionDialogButtonMutatorReveal", "N", StringToText("0")
+                )
+            );
+            STSetString(STR(g_ui.selectionDialogTempData[playeridx], ".dcToBehavior." + IntToString(dc)), "reveal");
+            STSetInt(STR(g_ui.selectionDialogTempData[playeridx], ".behaviorToDc.reveal"), dc);
+            TriggerAddEventDialogControl(triggerMutatorButton, player, dc, c_triggerControlEventTypeClick);
+            buttonCount += 1;
+        }
+
+        dc = CPLUI_ControlContainer_Append(
+            g_ui.controlContainerButton[playeridx],
+            c_triggerControlTypeButton,
+            "CoopPlusSelectionLayout/AlternateButtonTemplate"
+        );
+        DialogControlSetPropertyAsText(
+            dc, c_triggerControlPropertyText, PlayerGroupSingle(player),
+            StringExternal("CoopPlus/Launcher/SelectionDialogButtonCancel")
+        );
+        STSetString(STR(g_ui.selectionDialogTempData[playeridx], ".dcToBehavior." + IntToString(dc)), "cancel");
+        STSetInt(STR(g_ui.selectionDialogTempData[playeridx], ".behaviorToDc.cancel"), dc);
+        TriggerAddEventDialogControl(triggerMutatorButton, player, dc, c_triggerControlEventTypeClick);
+        buttonCount += 1;
+
+        if (buttonCount == 2) {
+            CPLUI_ControlContainer_GridFormat(
+                g_ui.controlContainerButton[playeridx], 3, 1, 0, 0, 1870 - (288 * 2), 0
+            );
+        }
+        else {
+            CPLUI_ControlContainer_GridFormat(
+                g_ui.controlContainerButton[playeridx], 3, 1, 0, 0, (1870 - (288 * 3)) / 2, 0
+            );
+        }
+
+        if ((currentIntention == CP_c_playerIntentionVeto) || (currentIntention == CP_c_playerIntentionRevealRandom)) {
+            count = ST_Array_Count(currentMutatorsList);
+            for (i = 0; i < count; i += 1) {
+                SelectionMutatorToggleVeto(player, STGetString(ST_Array_ByIndex(currentMutatorsList, i)));
+            }
+        }
+    }
+}
+
+bool CPLUI_OnSelectionEnemyCompositionContextMenu(bool testConds, bool runActions) {
+    int player;
+    int playeridx;
+    int triggeringDc;
+    int i;
+    CP_EnemyComposition enemyComposition;
+    
+    if (!runActions) {
+        return true;
+    }
+
+    player = EventPlayer();
+    playeridx = player - 1;
+    triggeringDc = EventDialogControl();
+
+    enemyComposition = STGetString(
+        STR(g_ui.selectionDialogTempData[playeridx], ".dcToEnemyComposition." + IntToString(triggeringDc))
+    );
+
+    g_callbacks.onEnemyCompositionSelected(player, CP_c_playerIntentionSelect, enemyComposition);
+
+    CloseSelectionDialog(player);
+    
+    return true;
+}
+
+void CPLUI_EnemyCompositionSelection(int player, int currentIntention, CP_EnemyComposition currentEnemyComposition) {
+    int playeridx = player - 1;
+    text title = StringExternal("CoopPlus/Launcher/SelectionDialogTitleEnemyCompositionSelect");
+    int i;
+    int dc;
+    trigger triggerEnemyCompositionClicked;
+    CP_EnemyComposition enemyComposition;
+    
+    // 300 x 60 in 4 x 5 grid with 25 x 25 spacing
+    if (!ShowSelectionDialog(player, 1275, 400, false, title)) {
+        return;
+    }
+
+    STSetObject(STR(g_ui.selectionDialogTempData[playeridx], ".dcToEnemyComposition"), ST_Object_Create());
+    triggerEnemyCompositionClicked = TriggerCreate("CPLUI_OnSelectionEnemyCompositionContextMenu");
+    STSetTrigger(ST_Array_BackInserter(g_ui.triggerSelectionActiveArray[playeridx]), triggerEnemyCompositionClicked);
+    
+    for (i = 0; i < CP_EnemyComposition_Count(); i += 1) {
+        enemyComposition = CP_EnemyComposition_FromIndex(i);
+        dc = CPLUI_ControlContainer_Append(
+            g_ui.controlContainerContent[playeridx],
+            c_triggerControlTypeButton,
+            "CoopPlusSelectionLayout/EnemyCompositionTemplate"
+        );
+        SetupEnemyCompositionFrame(dc, false, enemyComposition);
+        STSetString(
+            STR(g_ui.selectionDialogTempData[playeridx], ".dcToEnemyComposition." + IntToString(dc)),
+            enemyComposition
+        );
+        TriggerAddEventDialogControl(triggerEnemyCompositionClicked, player, dc, c_triggerControlEventTypeClick);
+
+        if ((currentIntention == CP_c_playerIntentionSelect) && (currentEnemyComposition == enemyComposition)) {
+            DialogControlSetAnimationState(dc, PlayerGroupSingle(player), "SelectionState", "Selected");
+        }
+    }
+
+    CPLUI_ControlContainer_GridFormat(g_ui.controlContainerContent[playeridx], 4, 5, 0, 0, 25, 25);
+}
+
+bool CPLUI_OnNavigationClicked(bool testConds, bool runActions) {
+    int i;
+    int triggeringDc;
+    int targetNavigationIndex;
+    CP_GameMode requestedMode = "";
+    CP_GameMode lastGameMode = STGetString(STR(g_lastMatchmaking, ".result.gameMode"));
+
+    if (!runActions) {
+        return true;
+    }
+
+    triggeringDc = EventDialogControl();
+    if (triggeringDc == g_ui.dcNavigationHomeButton) {
+        g_callbacks.onGameModeScreenRequested(EventPlayer());
+        return true;
+    }
+    for (i = 0; i < c_navigationButtonsCount; i += 1) {
+        if (triggeringDc == g_ui.dcNavigationModeButtons[i]) {
+            requestedMode = c_navigationButtonDefaultMode[i];
+            break;
+        }
+    }
+    if (requestedMode == "") {
+        for (i = 0; i < c_subnavigationButtonsCount; i += 1) {
+            if (triggeringDc == g_ui.dcSubnavigationModeButtons[i]) {
+                targetNavigationIndex = CP_GameMode_GetLauncherNavigationIndex(lastGameMode) / 10;
+                requestedMode = STGetString(ST_Array_ByIndex(c_navigationMapping[targetNavigationIndex], i));
+                break;
+            }
+        }
+    }
+    ST_Assert(requestedMode != "", "CPLUI_OnNavigationClicked(): couldn't find the source DialogControl");
+
+    // Reset toggle status anyway
+    SetNavigationToggledStatus(lastGameMode);
+
+    if (requestedMode != lastGameMode) {
+        g_callbacks.onGameModeChangeRequested(EventPlayer(), requestedMode);
+    }
+    
+    return true;
+}
+
+bool CPLUI_OnCommanderClicked(bool testConds, bool runActions) {
+    int i;
+    int triggeringDc;
+    ST_Ref ref;
+    string commander;
+
+    if (!runActions) {
+        return true;
+    }
+
+    triggeringDc = EventDialogControl();
+    for (i = 0; i < ST_Object_Count(g_ui.dcCommanderSelectionButtons); i += 1) {
+        ref = ST_Object_ByIndex(g_ui.dcCommanderSelectionButtons, i);
+        if (STGetInt(ref) == triggeringDc) {
+            commander = STR_MemberNameFromParentObject(ref);
+            if (commander == CP_Commander_Random()) {
+                commander = "";
+            }
+            if (EventDialogControlMouseButton() == c_mouseButtonRight) {
+                g_callbacks.onCommanderContextMenu(EventPlayer(), commander == "", commander);
+            }
+            else {
+                g_callbacks.onCommanderClicked(EventPlayer(), commander == "", commander);
+            }
+            break;
+        }
+    }
+    return true;
+}
+
+static bool GameSetupDelegateToCallback(
+    int player, int triggeringDc, int intentionLhsDc, int intentionRhsDc, int resultDc,
+    funcref<CPLUI_CallbackPrototype_OnDifficultyContextMenu> func
+) {
+    if (triggeringDc == resultDc) {
+        func(player, true);
+        return true;
+    }
+    else if (triggeringDc == intentionLhsDc) {
+        func(player, player == 1);
+        return true;
+    }
+    else if (triggeringDc == intentionRhsDc) {
+        func(player, player == 2);
+        return true;
+    }
+    return false;
+}
+
+bool CPLUI_OnGameSetupClicked(bool testConds, bool runActions) {
+    int triggeringDc;
+    int player;
+
+    if (!runActions) {
+        return true;
+    }
+
+    triggeringDc = EventDialogControl();
+    player = EventPlayer();
+
+    if (GameSetupDelegateToCallback(
+        player, triggeringDc,
+        g_ui.gameSetupIntentionPanel[0].dcDifficulty,
+        g_ui.gameSetupIntentionPanel[1].dcDifficulty,
+        g_ui.gameSetupResultPanel.dcDifficulty,
+        g_callbacks.onDifficultyContextMenu
+    )) { return true; }
+    if (GameSetupDelegateToCallback(
+        player, triggeringDc,
+        g_ui.gameSetupIntentionPanel[0].dcMap,
+        g_ui.gameSetupIntentionPanel[1].dcMap,
+        g_ui.gameSetupResultPanel.dcMap,
+        g_callbacks.onMapContextMenu
+    )) { return true; }
+    if (GameSetupDelegateToCallback(
+        player, triggeringDc,
+        g_ui.gameSetupIntentionPanel[0].dcMutators,
+        g_ui.gameSetupIntentionPanel[1].dcMutators,
+        g_ui.gameSetupResultPanel.dcMutators,
+        g_callbacks.onMutatorsContextMenu
+    )) { return true; }
+    if (GameSetupDelegateToCallback(
+        player, triggeringDc,
+        g_ui.gameSetupIntentionPanel[0].dcEnemyComposition,
+        g_ui.gameSetupIntentionPanel[1].dcEnemyComposition,
+        g_ui.gameSetupResultPanel.dcEnemyComposition,
+        g_callbacks.onEnemyCompositionContextMenu
+    )) { return true; }
+
+    return true;
+}
+
+bool CPLUI_OnReadyClicked(bool testConds, bool runActions) {
+    if (!runActions) {
+        return true;
+    }
+
+    g_callbacks.onReadyClicked(EventPlayer());
+    return true;
+}
+
+bool CPLUI_OnLevelClicked(bool testConds, bool runActions) {
+    if (!runActions) {
+        return true;
+    }
+
+    g_callbacks.onCustomizeClicked(EventPlayer());
+    return true;
+}
+
+
+bool CPLUI_SelectionOutOfBoundClickHandler(bool testConds, bool runActions) {
+    if (!runActions) {
+        return true;
+    }
+
+    CloseSelectionDialog(EventPlayer());
+    return true;
+}
+
+static string ForegroundCutsceneFilter(string commander) {
+    if (commander == "") {
+        return CP_Commander_Random();
+    }
+    return commander;
+}
+
+static bool ShowSelectionDialog(
+    int player, int desiredContentWidth, int desiredContentHeight, bool showButtonContainer, text title
+) {
+    int playeridx = player - 1;
+    playergroup pg = PlayerGroupSingle(player);
+    int dialogWidth;
+    int dialogHeight;
+
+    if (g_ui.isSelectionDialogOpened[playeridx]) {
+        return false;
+    }
+    
+    // XREF: CoopPlusSelectionLayout/SelectionDialogTemplate/Dialog
+    dialogWidth = desiredContentWidth + 60;
+    if (showButtonContainer) {
+        dialogHeight = desiredContentHeight + 200;
+    }
+    else {
+        dialogHeight = desiredContentHeight + 110;
+    }
+
+    DialogControlSetSize(g_ui.dcSelectionDialog[playeridx], pg, dialogWidth, dialogHeight);
+    DialogControlSetPositionRelative(
+        g_ui.dcSelectionDialog[playeridx], pg, c_anchorCenter, g_ui.dcSelection[playeridx], c_anchorCenter, 0, 0
+    );
+    DialogControlSetVisible(g_ui.dcSelectionButtonContainer[playeridx], pg, showButtonContainer);
+    DialogControlSetPropertyAsText(g_ui.dcSelectionTitle[playeridx], c_triggerControlPropertyText, pg, title);
+    DialogSetVisible(g_ui.dialogSelection[playeridx], pg, true);
+
+    CPLUI_ControlContainer_Clear(g_ui.controlContainerContent[playeridx]);
+    CPLUI_ControlContainer_Clear(g_ui.controlContainerButton[playeridx]);
+
+    g_ui.isSelectionDialogOpened[playeridx] = true;
+    
+    return true;
+}
+
+static void CloseSelectionDialog(int player) {
+    int playeridx = player - 1;
+    int i;
+
+    if (!g_ui.isSelectionDialogOpened[playeridx]) {
+        return;
+    }
+
+    // Cleanup triggers and data
+    for (i = 0; i < ST_Array_Count(g_ui.triggerSelectionActiveArray[playeridx]); i += 1) {
+        TriggerDestroy(STGetTrigger(ST_Array_ByIndex(g_ui.triggerSelectionActiveArray[playeridx], i)));
+    }
+    ST_Array_Clear(g_ui.triggerSelectionActiveArray[playeridx], false);
+    ST_Object_Clear(g_ui.selectionDialogTempData[playeridx], true);
+
+    DialogSetVisible(g_ui.dialogSelection[playeridx], PlayerGroupSingle(player), false);
+
+    g_ui.isSelectionDialogOpened[playeridx] = false;
+}
+
+static void SetSubnavigationButtons(CP_GameMode gameMode) {
+    int i = 0;
+    int navigationIndex = CP_GameMode_GetLauncherNavigationIndex(gameMode);
+    CP_GameMode gameModeForCurrentButton;
+
+    for (i = 0; i < ST_Array_Count(c_navigationMapping[navigationIndex / 10]); i += 1) {
+        DialogControlSetPropertyAsBool(
+            g_ui.dcSubnavigationModeButtons[i], c_triggerControlPropertyVisible, PlayerGroupAll(), true
+        );
+        gameModeForCurrentButton = STGetString(ST_Array_ByIndex(c_navigationMapping[navigationIndex / 10], i));
+        DialogControlSetPropertyAsText(
+            g_ui.dcSubnavigationModeButtons[i], c_triggerControlPropertyText, PlayerGroupAll(),
+            CP_GameMode_GetName(gameModeForCurrentButton)
+        );
+    }
+    for (; i < c_subnavigationButtonsCount; i += 1) {
+        DialogControlSetPropertyAsBool(
+            g_ui.dcSubnavigationModeButtons[i], c_triggerControlPropertyVisible, PlayerGroupAll(), false
+        );
+    }
+}
+
+static void SetNavigationToggledStatus(CP_GameMode gameMode) {
+    int i;
+    int navigationIndex = CP_GameMode_GetLauncherNavigationIndex(gameMode);
+
+    for (i = 0; i < c_navigationButtonsCount; i += 1) {
+        DialogControlSetPropertyAsBool(
+            g_ui.dcNavigationModeButtons[i], c_triggerControlPropertyToggled, PlayerGroupAll(),
+            navigationIndex / 10 == i
+        );
+    }
+    for (i = 0; i < c_subnavigationButtonsCount; i += 1) {
+        DialogControlSetPropertyAsBool(
+            g_ui.dcSubnavigationModeButtons[i], c_triggerControlPropertyToggled, PlayerGroupAll(),
+            navigationIndex % 10 == i
+        );
+    }
+}
+
+bool CPLUI_ControlContainer_Destructor(bool testConds, bool runActions) {
+    CPLUI_ControlContainer controlContainer = ST_EventObject();
+    CPLUI_ControlContainer_Clear(controlContainer);
+    return true;
+}
+
+static CPLUI_ControlContainer CPLUI_ControlContainer_Create(int dcBase) {
+    CPLUI_ControlContainer ret = ST_Object_Create();
+    STSetInt(STR(ret, ".dcBase"), dcBase);
+    STSetArray(STR(ret, ".dcChildren"), ST_Array_Create());
+    ST_Object_SetDestructor(ret, ST_TriggerGlobalCreate("CPLUI_ControlContainer_Destructor"));
+    return ret;
+}
+
+static void CPLUI_ControlContainer_Destroy(CPLUI_ControlContainer controlContainer) {
+    ST_Object_Destroy(controlContainer, true);
+}
+
+static void CPLUI_ControlContainer_Clear(CPLUI_ControlContainer controlContainer) {
+    ST_Array dcChildren = STGetArray(STR(controlContainer, ".dcChildren"));
+    int i;
+    int count = ST_Array_Count(dcChildren);
+    for (i = 0; i < count; i += 1) {
+        DialogControlDestroy(STGetInt(ST_Array_ByIndex(dcChildren, i)));
+    }
+    ST_Array_Clear(dcChildren, false);
+}
+
+static int CPLUI_ControlContainer_Append(CPLUI_ControlContainer controlContainer, int type, string template) {
+    int ret = DialogControlCreateInPanelFromTemplate(
+        STGetInt(STR(controlContainer, ".dcBase")), type, template
+    );
+    STSetInt(STR(controlContainer, ".dcChildren[*]"), ret);
+    return ret;
+}
+
+static int CPLUI_ControlContainer_FromIndex(CPLUI_ControlContainer controlContainer, int index) {
+    return STGetInt(STR(controlContainer, ".dcChildren[" + IntToString(index) + "]"));
+}
+
+static int CPLUI_ControlContainer_Count(CPLUI_ControlContainer controlContainer) {
+    return ST_Array_Count(STGetArray(STR(controlContainer, ".dcChildren")));
+}
+
+static void CPLUI_ControlContainer_GridFormat(
+    CPLUI_ControlContainer controlContainer, int xCount, int yCount,
+    int xLeftMargin, int yTopMargin, int xSpacing, int ySpacing
+) {
+    int i;
+    int count = CPLUI_ControlContainer_Count(controlContainer);
+    int dc;
+    int dcRel;
+    int xIndex;
+    int yIndex;
+
+    for (i = 0; i < count; i += 1) {
+        xIndex = i % xCount;
+        yIndex = i / xCount;
+        if (yIndex >= yCount) {
+            break;
+        }
+
+        dc = CPLUI_ControlContainer_FromIndex(controlContainer, i);
+        if (xIndex == 0) {
+            if (yIndex == 0) {
+                DialogControlSetPositionRelative(
+                    dc, PlayerGroupAll(), c_anchorTopLeft,
+                    STGetInt(STR(controlContainer, ".dcBase")),
+                    c_anchorTopLeft, xLeftMargin, yTopMargin
+                );
+            }
+            else {
+                DialogControlSetPositionRelative(
+                    dc, PlayerGroupAll(), c_anchorTopLeft,
+                    CPLUI_ControlContainer_FromIndex(controlContainer, i - xCount),
+                    c_anchorBottomLeft, 0, ySpacing
+                );
+            }
+        }
+        else {
+            DialogControlSetPositionRelative(
+                dc, PlayerGroupAll(), c_anchorTopLeft,
+                CPLUI_ControlContainer_FromIndex(controlContainer, i - 1),
+                c_anchorTopRight, xSpacing, 0
+            );
+        }
+    }
+}
+
+static string UINamePostfix(string uiname, int playeridx) {
+    int index;
+    string postfix = "Rhs";
+    if (playeridx == 0) {
+        postfix = "Lhs";
+    }
+    while (true) {
+        index = ST_StringFind(uiname, "{}");
+        if (index == -1) {
+            break;
+        }
+        uiname = ST_StringSub(uiname, 0, index) + postfix + ST_StringSub(uiname, index + 2, StringLength(uiname));
+    }
+    return uiname;
+}
+
+static void TransitCommanderButton(int player, int dc, bool selected, bool veto, bool otherplayer) {
+    playergroup pg = PlayerGroupSingle(player);
+
+    if (selected) {
+        DialogControlSetAnimationState(dc, pg, "MySelectionState", "Selected");
+    }
+    else if (veto) {
+        DialogControlSetAnimationState(dc, pg, "MySelectionState", "Veto");
+    }
+    else {
+        DialogControlSetAnimationState(dc, pg, "MySelectionState", "Unselected");
+    }
+    if (otherplayer) {
+        DialogControlSetAnimationState(dc, pg, "TheirSelectionState", "Selected");
+    }
+    else {
+        DialogControlSetAnimationState(dc, pg, "TheirSelectionState", "Unselected");
+    }
+}
+
+static void TransitCommanderContainer(
+    CP_Matchmaking oldMatchmaking, CP_Matchmaking newMatchmaking, int player, bool force
+) {
+    int i;
+    int dc;
+    int playeridx = player - 1;
+    int otherplayeridx = 1 - playeridx;
+    ST_Object result;
+    CP_Commander commander;
+    
+    string oldCommanderResult = STGetString(STR(oldMatchmaking, ".result.commander[" + IntToString(playeridx) + "]"));
+    string newCommanderResult = STGetString(STR(newMatchmaking, ".result.commander[" + IntToString(playeridx) + "]"));
+    string oldOtherPlayerCommanderResult = STGetString(STR(oldMatchmaking, ".result.commander[" + IntToString(otherplayeridx) + "]"));
+    string newOtherPlayerCommanderResult = STGetString(STR(newMatchmaking, ".result.commander[" + IntToString(otherplayeridx) + "]"));
+    int oldCommanderIntention = STGetInt(STR(oldMatchmaking, ".launcher.player[" + IntToString(playeridx) + "].commanderIntention"));
+    int newCommanderIntention = STGetInt(STR(newMatchmaking, ".launcher.player[" + IntToString(playeridx) + "].commanderIntention"));
+    ST_Array oldCommanderList = STGetArray(STR(oldMatchmaking, ".launcher.player[" + IntToString(playeridx) + "].commanderList"));
+    ST_Array newCommanderList = STGetArray(STR(newMatchmaking, ".launcher.player[" + IntToString(playeridx) + "].commanderList"));
+
+    if (
+        force
+        || (oldCommanderResult != newCommanderResult)
+        || (oldOtherPlayerCommanderResult != newOtherPlayerCommanderResult)
+        || (oldCommanderIntention != newCommanderIntention)
+        || !ST_StringArrayMultisetEquivalency(oldCommanderList, newCommanderList)
+    ) {
+        result = ST_Object_Create();
+
+        for (i = 0; i < CP_Commander_Count(); i += 1) {
+            commander = CP_Commander_FromIndex(i);
+            dc = STGetInt(ST_Object_Query(g_ui.dcCommanderSelectionButtons, commander));
+            TransitCommanderButton(
+                player, dc,
+                newCommanderResult == commander,
+                (
+                    (newCommanderIntention == CP_c_playerIntentionVeto)
+                    && (ST_FindStringFromStringArray(newCommanderList, commander) != -1)
+                ),
+                newOtherPlayerCommanderResult == commander
+            );
+        }
+        dc = STGetInt(ST_Object_Query(g_ui.dcCommanderSelectionButtons, CP_Commander_Random()));
+        TransitCommanderButton(
+            player, dc,
+            newCommanderResult == "",
+            false,
+            newOtherPlayerCommanderResult == ""
+        );
+        
+        ST_Object_Destroy(result, false);
+    }
+}
+
+void CPLUI_Countdown() {
+    int i;
+    int j;
+    for (i = 3; i > 0; i -= 1) {
+        // TODO
+        for (j = 0; j < 2; j += 1) {
+            CPLUI_Tooltip(j + 1, IntToText(i));
+        }
+        Wait(1, c_timeReal);
+    }
+}

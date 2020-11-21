@@ -1,0 +1,258 @@
+include "TriggerLibs/NativeLib"
+include "scripts/st_utility"
+
+//////////// Exports
+
+//// Library initialization
+
+void STCM_InitLib();
+
+
+
+//// ContextMenu entry definition
+
+// typedef struct {
+//     string key;
+//     text menuText;
+//     bool enabled;
+// }[] STCM_Entries;
+
+typedef ST_Array STCM_Entries;
+STCM_Entries STCM_Entries_Create() { return ST_Array_Create(); }
+void STCM_Entries_Destroy(STCM_Entries obj) { ST_Array_Destroy(obj, true); }
+void STCM_Entries_Copy(STCM_Entries lhs, STCM_Entries rhs) { ST_Array_Copy(lhs, rhs, true); }
+void STCM_Entries_AddEntry(
+    STCM_Entries entries, string key, text menuText, bool enabled
+);
+int STCM_Entries_Count(STCM_Entries entries) { return ST_Array_Count(entries); }
+
+
+
+//// ContextMenu functions
+
+void STCM_CallbackPrototype_OnClick(int player, string identifier, string clickedKey, bool isEntryEnabled) {}
+
+void STCM_ContextMenu(
+    int player, string identifier, STCM_Entries entries, int locationX, int locationY,
+    funcref<STCM_CallbackPrototype_OnClick> callback
+);
+
+void STCM_ChangeDefaultRenderPriority(int renderPriority);
+
+
+
+////////////
+
+struct STCM_PerPlayer {
+    bool initialized;
+    bool enabled;
+
+    int dialog;
+    int dcMenu;
+    int dcBackground;
+    int dcPositionSetter;
+    int dcWidthSetter;
+    int dcHeightSetter;
+
+    string identifier;
+    STCM_Entries entries;
+    funcref<STCM_CallbackPrototype_OnClick> callback;
+};
+
+static bool g_initialized;
+static trigger g_triggerOutOfBoundClickHandler;
+static trigger g_triggerSelectionHandler;
+static STCM_PerPlayer[c_maxPlayers] g_currentMenus;
+
+static int g_defaultRenderPriority;
+
+bool STCM_OutOfBoundClickHandler(bool testConds, bool runActions);
+bool STCM_SelectionHandler(bool testConds, bool runActions);
+
+static void InitializeMenuForPlayer(int player);
+static void CloseContextMenu(int player);
+
+
+
+////////////
+
+void STCM_InitLib() {
+    int i;
+    int dcMain;
+
+    if (g_initialized) {
+        return;
+    }
+
+    ST_InitLib();
+
+    g_triggerOutOfBoundClickHandler = TriggerCreate("STCM_OutOfBoundClickHandler");
+    g_triggerSelectionHandler = TriggerCreate("STCM_SelectionHandler");
+
+    STCM_ChangeDefaultRenderPriority(1000);
+
+    g_initialized = true;
+}
+
+void STCM_Entries_AddEntry(
+    STCM_Entries entries, string key, text menuText, bool enabled
+) {
+    ST_Object entry = ST_Object_Create();
+    STSetString(STR(entry, ".key"), key);
+    STSetText(STR(entry, ".menuText"), menuText);
+    STSetBool(STR(entry, ".enabled"), enabled);
+
+    STSetObject(STR(entries, "[*]"), entry);
+}
+
+static void InitializeMenuForPlayer(int player) {
+    int dcMain;
+    if (g_currentMenus[player].initialized) {
+        return;
+    }
+
+    g_currentMenus[player].dialog = DialogCreate(300, 300, c_anchorTopLeft, 0, 0, true);
+    DialogSetFullscreen(g_currentMenus[player].dialog, true);
+    DialogSetImageVisible(g_currentMenus[player].dialog, false);
+    DialogSetRenderPriority(g_currentMenus[player].dialog, g_defaultRenderPriority);
+
+    dcMain = DialogControlCreateFromTemplate(
+        g_currentMenus[player].dialog, c_triggerControlTypePanel, "STContextMenu/STContextMenuTemplate"
+    );
+    g_currentMenus[player].dcBackground = DialogControlHookup(dcMain, c_triggerControlTypeButton, "Background");
+    g_currentMenus[player].dcMenu = DialogControlHookup(dcMain, c_triggerControlTypeListBox, "Menu");
+    g_currentMenus[player].dcPositionSetter = DialogControlHookup(
+        dcMain, c_triggerControlTypePanel, "PositionSetter"
+    );
+    g_currentMenus[player].dcWidthSetter = DialogControlHookup(
+        dcMain, c_triggerControlTypeLabel, "Menu/WidthSetter"
+    );
+    g_currentMenus[player].dcHeightSetter = DialogControlHookup(
+        dcMain, c_triggerControlTypePanel, "Menu/HeightSetter"
+    );
+
+    libNtve_gf_SetDialogItemtoUseAspectUncorrection(g_currentMenus[player].dcPositionSetter, true, PlayerGroupAll());
+    
+    // Register triggers
+    TriggerAddEventDialogControl(
+        g_triggerOutOfBoundClickHandler, player, g_currentMenus[player].dcBackground, c_triggerControlEventTypeClick
+    );
+    TriggerAddEventDialogControl(
+        g_triggerSelectionHandler, player, g_currentMenus[player].dcMenu, c_triggerControlEventTypeSelectionChanged
+    );
+
+    g_currentMenus[player].entries = STCM_Entries_Create();
+
+    g_currentMenus[player].initialized = true;
+}
+
+static void CloseContextMenu(int player) {
+    if (!g_currentMenus[player].enabled) {
+        return;
+    }
+    DialogSetVisible(g_currentMenus[player].dialog, PlayerGroupSingle(player), false);
+    g_currentMenus[player].enabled = false;
+}
+
+void STCM_ContextMenu(
+    int player, string identifier, STCM_Entries entries, int locationX, int locationY,
+    funcref<STCM_CallbackPrototype_OnClick> callback
+) {
+    playergroup pg = PlayerGroupSingle(player);
+    int menuItemCount = STCM_Entries_Count(entries);
+    int i;
+    int height;
+    text menuText;
+    text approximatelyLongestText;
+
+    // Create menu if not exists
+    InitializeMenuForPlayer(player);
+
+    // Close already existing menus
+    CloseContextMenu(player);
+
+    if (menuItemCount == 0) {
+        // No menu entries; just close existing menu and return.
+        return;
+    }
+
+    g_currentMenus[player].identifier = identifier;
+    STCM_Entries_Copy(g_currentMenus[player].entries, entries);
+    g_currentMenus[player].callback = callback;
+
+    // Add menu items
+    DialogControlRemoveAllItems(g_currentMenus[player].dcMenu, pg);
+    for(i = 0; i < menuItemCount; i += 1) {
+        menuText = STGetText(STR_R(ST_Array_ByIndex(entries, i), ".menuText"));
+        if (!STGetBool(STR_R(ST_Array_ByIndex(entries, i), ".enabled"))) {
+            menuText = StringToText("<c val=\"636363\">") + menuText + StringToText("</c>");
+        }
+        DialogControlAddItem(
+            g_currentMenus[player].dcMenu, pg, menuText
+        );
+    }
+
+    // Unfortunately for width we cannot obtain any information about the text (length or rendered width),
+    // even with layout assistant. So we're limited to just take a sample or get hinted.
+    libNtve_gf_SetDialogItemText(g_currentMenus[player].dcWidthSetter, menuText, pg);
+
+    DialogControlSetPosition(g_currentMenus[player].dcPositionSetter, pg, c_anchorTopLeft, locationX, locationY);
+
+    // XREF: STContextMenu/STContextMenuTemplate/Menu/ItemHeight, Insets
+    height = libNtve_gf_ArithmeticIntClamp(36 * menuItemCount + 16, 0, 500);
+    DialogControlSetSize(g_currentMenus[player].dcHeightSetter, pg, 100, height);
+    
+
+    DialogSetVisible(g_currentMenus[player].dialog, pg, true);
+
+    g_currentMenus[player].enabled = true;
+}
+
+bool STCM_OutOfBoundClickHandler(bool testConds, bool runActions) {
+    if (!runActions) {
+        return true;
+    }
+
+    CloseContextMenu(EventPlayer());
+    return true;
+}
+
+bool STCM_SelectionHandler(bool testConds, bool runActions) {
+    int player = EventPlayer();
+    int selectedIndex;
+    bool entryEnabled;
+
+    if (!runActions) {
+        return true;
+    }
+
+    if (!g_currentMenus[player].enabled) {
+        return true;
+    }
+    
+    selectedIndex = DialogControlGetSelectedItem(EventDialogControl(), player);
+    if (selectedIndex == 0) {
+        // This happens when DialogControlRemoveAllItems() is called; ignore this event.
+        return true;
+    }
+
+    entryEnabled = STGetBool(STR_R(ST_Array_ByIndex(g_currentMenus[player].entries, selectedIndex - 1), ".enabled"));
+
+    if (entryEnabled) {
+        CloseContextMenu(EventPlayer());
+    }
+    else {
+        DialogControlClearSelectedItem(g_currentMenus[player].dcMenu, PlayerGroupSingle(player));
+    }
+
+    g_currentMenus[player].callback(
+        player, g_currentMenus[player].identifier,
+        STGetString(STR_R(ST_Array_ByIndex(g_currentMenus[player].entries, selectedIndex - 1), ".key")),
+        entryEnabled
+    );
+    
+    return true;
+}
+
+void STCM_ChangeDefaultRenderPriority(int renderPriority) { g_defaultRenderPriority = renderPriority; }
+

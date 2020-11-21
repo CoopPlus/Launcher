@@ -1,0 +1,670 @@
+include "TriggerLibs/NativeLib"
+include "scripts/st_contextmenu"
+include "scripts/cp_global"
+include "scripts/cp_launcher_matchmakingcontroller"
+include "scripts/cp_launcher_ui"
+include "scripts/st_serialization"
+
+static CP_Matchmaking g_matchmaking;
+static int[2] g_mouseTrackerX;
+static int[2] g_mouseTrackerY;
+static bool[2] g_playerLeftGame;
+
+static CP_GameMode GetVariant() {
+    string attvalue;
+
+    // Local play does not support setting variants and thus GameAttributeGameValue() always return empty string
+    if (!GameIsOnline()) {
+        return "Brutal";
+    }
+
+    // XREF: Attributes/1
+    attvalue = GameAttributeGameValue("1"); // Attribute CP_GameMode
+    if (attvalue == "0001") { return "Casual"; }
+    else if (attvalue == "0002") { return "Normal"; }
+    else if (attvalue == "0003") { return "Hard"; }
+    else if (attvalue == "0004") { return "Brutal"; }
+    else if (attvalue == "0005") { return "Brutal+"; }
+    else if (attvalue == "0006") { return "Brutal+2"; }
+    else if (attvalue == "0007") { return "Brutal+3"; }
+    else if (attvalue == "0008") { return "Brutal+4"; }
+    else if (attvalue == "0009") { return "Brutal+5"; }
+    else if (attvalue == "0010") { return "Brutal+6"; }
+    else if (attvalue == "0011") { return "WeeklyMutation"; }
+    else if (attvalue == "0012") { return "Custom"; }
+
+    ST_Assert(false, "GetVariant(): unable to obtain the game mode");
+    return "Brutal";
+}
+
+static void StartMission() {
+    ST_Assert(CPLMC_AreAllPlayersReady(g_matchmaking), "StartMission(): players not ready");
+
+    // TODO
+    // if (GameIsOnline()) {
+    //     OnlineMapToMapLoad(78, PlayerGroupAll(), PlayerGroupEmpty());
+    // }
+
+    ST_DebugPrint("NYI: Jump should have been initiated.");
+}
+
+static void onCommanderContextMenuClicked(int player, string identifier, string clickedKey, bool isEntryEnabled) {
+    text error;
+    int playeridx = player - 1;
+    bool isRandom = (identifier == "");
+    string commander = identifier;
+
+    if (clickedKey == "(ban)") {
+        error = CPLMC_VetoCommander(g_matchmaking, player, commander, true, !isEntryEnabled);
+    }
+    else if (clickedKey == "(unban)") {
+        error = CPLMC_VetoCommander(g_matchmaking, player, commander, false, !isEntryEnabled);
+    }
+    else if (clickedKey == "(about)") {
+        // TODO
+        error = StringExternal("UI/TechTreeNYI");
+    }
+
+    if (error != c_emptyText) {
+        CPLUI_Tooltip(player, error);
+    }
+    else {
+        CPLUI_UpdateGameSetup(g_matchmaking, false);
+    }
+}
+
+static void onCommanderContextMenu(int player, bool isRandom, CP_Commander commander) {
+    int playeridx = player - 1;
+    int i;
+    CP_Difficulty difficulty;
+    STCM_Entries entries = STCM_Entries_Create();
+
+    ST_Assert(isRandom == (commander == ""), "onCommanderContextMenu(): unexpected input");
+
+    if (!isRandom) {
+        if (CPLMC_VetoCommander(g_matchmaking, player, commander, false, true) == c_emptyText) {
+            STCM_Entries_AddEntry(
+                entries, "(unban)", StringExternal("CoopPlus/Launcher/IntentionMenuCommanderUnban"),
+                true
+            );
+        }
+        else {
+            STCM_Entries_AddEntry(
+                entries, "(ban)", StringExternal("CoopPlus/Launcher/IntentionMenuCommanderBan"),
+                CPLMC_VetoCommander(g_matchmaking, player, commander, true, true) == c_emptyText
+            );
+        }
+    }
+    STCM_Entries_AddEntry(entries, "(about)", StringExternal("CoopPlus/Launcher/IntentionMenuCommanderAbout"), true);
+
+    STCM_ContextMenu(
+        player, commander, entries, g_mouseTrackerX[playeridx], g_mouseTrackerY[playeridx],
+        onCommanderContextMenuClicked
+    );
+    
+    STCM_Entries_Destroy(entries);
+}
+
+static void onCommanderClicked(int player, bool isRandom, CP_Commander commander) {
+    text error;
+    ST_Array commanderArray = ST_Array_Create();
+
+    if (isRandom) {
+        error = CPLMC_SetCommanderIntention(g_matchmaking, player, CP_c_playerIntentionNone, commanderArray, false);
+    }
+    else {
+        STSetString(ST_Array_BackInserter(commanderArray), commander);
+        error = CPLMC_SetCommanderIntention(g_matchmaking, player, CP_c_playerIntentionSelect, commanderArray, false);
+    }
+    
+    if (error != c_emptyText) {
+        CPLUI_Tooltip(player, error);
+    }
+    else {
+        CPLUI_UpdateGameSetup(g_matchmaking, false);
+    }
+
+    ST_Array_Destroy(commanderArray, false);
+}
+
+static void onGameModeChangeRequested(int player, CP_GameMode gameMode) {
+    // TODO: modal dialog for ally agreement
+    // TODO: Not CPLMC_InitializeMatchmaking but should be CPLMC_ChangeGameMode() with proper error checking
+    CPLMC_InitializeMatchmaking(g_matchmaking, gameMode, g_playerLeftGame[0], g_playerLeftGame[1]);
+    CPLUI_UpdateGameSetup(g_matchmaking, false);
+}
+
+static void onGameModeScreenRequested(int player) {
+    // TODO: modal dialog for ally agreement
+    CPLUI_Tooltip(player, StringToText("NYI: onGameModeScreenRequested"));
+}
+
+static void onReadyClicked(int player) {
+    text error = CPLMC_PlayerToggleReady(g_matchmaking, player);
+    if (error != c_emptyText) {
+        CPLUI_Tooltip(player, error);
+    }
+    CPLUI_UpdateGameSetup(g_matchmaking, false);
+    if (CPLMC_AreAllPlayersReady(g_matchmaking)) {
+        Wait(1.5, c_timeReal);
+        CPLMC_FinalizeSetup(g_matchmaking);
+        CPLUI_UpdateGameSetup(g_matchmaking, false);
+        Wait(1.5, c_timeReal);
+        CPLUI_Countdown();
+        StartMission();
+    }
+}
+
+static void onCustomizeClicked(int player) {
+    // TODO
+    CPLUI_Tooltip(player, StringExternal("UI/TechTreeNYI"));
+}
+
+static void onGameSetupContextMenuClicked(int player, string identifier, string clickedKey, bool isEntryEnabled) {
+    text error;
+    int playeridx = player - 1;
+    ST_Array arrayvalue = ST_Array_Create();
+
+    if (identifier == "difficulty") {
+        if (clickedKey == "(default)") {
+            error = CPLMC_SetDifficultyIntention(g_matchmaking, player, CP_c_playerIntentionNone, "", !isEntryEnabled);
+        }
+        else if (clickedKey == "(copy)") {
+            error = CPLMC_SetDifficultyIntention(g_matchmaking, player, CP_c_playerIntentionCopy, "", !isEntryEnabled);
+        }
+        else {
+            error = CPLMC_SetDifficultyIntention(
+                g_matchmaking, player, CP_c_playerIntentionSelect, clickedKey, !isEntryEnabled
+            );
+        }
+    }
+    else if (identifier == "map") {
+        if (clickedKey == "(default)") {
+            error = CPLMC_SetMapIntention(g_matchmaking, player, CP_c_playerIntentionNone, arrayvalue, !isEntryEnabled);
+        }
+        else if (clickedKey == "(reveal_noveto)") {
+            error = CPLMC_SetMapIntention(
+                g_matchmaking, player, CP_c_playerIntentionRevealRandom, arrayvalue, !isEntryEnabled
+            );
+        }
+        else if (clickedKey == "(dialog:select)") {
+            if (isEntryEnabled) {
+                CPLUI_MapSelection(
+                    player, true, false, false,
+                    STGetInt(STR(g_matchmaking, ".launcher.player[" + IntToString(playeridx) + "].mapIntention")),
+                    STGetArray(STR(g_matchmaking, ".launcher.player[" + IntToString(playeridx) + "].mapList"))
+                );
+            }
+            else {
+                STSetString(ST_Array_BackInserter(arrayvalue), "VoidThrashing");
+                error = CPLMC_SetMapIntention(g_matchmaking, player, CP_c_playerIntentionSelect, arrayvalue, true);
+            }
+        }
+        else if (clickedKey == "(dialog:veto_or_reveal)") {
+            STSetString(ST_Array_BackInserter(arrayvalue), "VoidThrashing");
+            if (isEntryEnabled) {
+                CPLUI_MapSelection(
+                    player, false,
+                    CPLMC_SetMapIntention(g_matchmaking, player, CP_c_playerIntentionVeto, arrayvalue, true)
+                    == c_emptyText,
+                    CPLMC_SetMapIntention(g_matchmaking, player, CP_c_playerIntentionRevealRandom, arrayvalue, true)
+                    == c_emptyText,
+                    STGetInt(STR(g_matchmaking, ".launcher.player[" + IntToString(playeridx) + "].mapIntention")),
+                    STGetArray(STR(g_matchmaking, ".launcher.player[" + IntToString(playeridx) + "].mapList"))
+                );
+            }
+            else {
+                error = CPLMC_SetMapIntention(g_matchmaking, player, CP_c_playerIntentionVeto, arrayvalue, true);
+                if (error == c_emptyText) {
+                    error = CPLMC_SetMapIntention(
+                        g_matchmaking, player, CP_c_playerIntentionRevealRandom, arrayvalue, true
+                    );
+                }
+            }
+        }
+        else if (clickedKey == "(copy)") {
+            error = CPLMC_SetMapIntention(g_matchmaking, player, CP_c_playerIntentionCopy, arrayvalue, !isEntryEnabled);
+        }
+    }
+    else if (identifier == "mutators") {
+        if (clickedKey == "(default)") {
+            error = CPLMC_SetMutatorIntention(
+                g_matchmaking, player, CP_c_playerIntentionNone, arrayvalue, !isEntryEnabled
+            );
+        }
+        else if (clickedKey == "(reveal_noveto)") {
+            error = CPLMC_SetMutatorIntention(
+                g_matchmaking, player, CP_c_playerIntentionRevealRandom, arrayvalue, !isEntryEnabled
+            );
+        }
+        else if (clickedKey == "(dialog:select)") {
+            if (isEntryEnabled) {
+                CPLUI_MutatorSelection(
+                    player, true, false, false,
+                    STGetInt(STR(g_matchmaking, ".launcher.player[" + IntToString(playeridx) + "].mutatorsIntention")),
+                    STGetArray(STR(g_matchmaking, ".launcher.player[" + IntToString(playeridx) + "].mutatorsList"))
+                );
+            }
+            else {
+                STSetString(ST_Array_BackInserter(arrayvalue), "WalkingInfested");
+                error = CPLMC_SetMutatorIntention(g_matchmaking, player, CP_c_playerIntentionSelect, arrayvalue, true);
+            }
+        }
+        else if (clickedKey == "(dialog:veto_or_reveal)") {
+            STSetString(ST_Array_BackInserter(arrayvalue), "WalkingInfested");
+            if (isEntryEnabled) {
+                CPLUI_MutatorSelection(
+                    player, false,
+                    CPLMC_SetMutatorIntention(g_matchmaking, player, CP_c_playerIntentionVeto, arrayvalue, true)
+                    == c_emptyText,
+                    CPLMC_SetMutatorIntention(g_matchmaking, player, CP_c_playerIntentionRevealRandom, arrayvalue, true)
+                    == c_emptyText,
+                    STGetInt(STR(g_matchmaking, ".launcher.player[" + IntToString(playeridx) + "].mutatorsIntention")),
+                    STGetArray(STR(g_matchmaking, ".launcher.player[" + IntToString(playeridx) + "].mutatorsList"))
+                );
+            }
+            else {
+                error = CPLMC_SetMutatorIntention(g_matchmaking, player, CP_c_playerIntentionVeto, arrayvalue, true);
+                if (error == c_emptyText) {
+                    error = CPLMC_SetMutatorIntention(
+                        g_matchmaking, player, CP_c_playerIntentionRevealRandom, arrayvalue, true
+                    );
+                }
+            }
+        }
+        else if (clickedKey == "(copy)") {
+            error = CPLMC_SetMutatorIntention(
+                g_matchmaking, player, CP_c_playerIntentionCopy, arrayvalue, !isEntryEnabled
+            );
+        }
+    }
+    else if (identifier == "enemyComposition") {
+        if (clickedKey == "(default)") {
+            error = CPLMC_SetEnemyCompositionIntention(
+                g_matchmaking, player, CP_c_playerIntentionNone, "", !isEntryEnabled
+            );
+        }
+        else if (clickedKey == "(reveal_noveto)") {
+            error = CPLMC_SetEnemyCompositionIntention(
+                g_matchmaking, player, CP_c_playerIntentionRevealRandom, "", !isEntryEnabled
+            );
+        }
+        else if (clickedKey == "(dialog:select)") {
+            if (isEntryEnabled) {
+                CPLUI_EnemyCompositionSelection(
+                    player,
+                    STGetInt(
+                        STR(g_matchmaking, ".launcher.player[" + IntToString(playeridx) + "].enemyCompositionIntention")
+                    ),
+                    STGetString(STR(g_matchmaking, ".launcher.player[" + IntToString(playeridx) + "].enemyComposition"))
+                );
+            }
+            else {
+                error = CPLMC_SetEnemyCompositionIntention(
+                    g_matchmaking, player, CP_c_playerIntentionSelect, "ProtossBuildGateway", true
+                );
+            }
+        }
+    }
+    if (error != c_emptyText) {
+        CPLUI_Tooltip(player, error);
+    }
+    else {
+        CPLUI_UpdateGameSetup(g_matchmaking, false);
+    }
+
+    ST_Array_Destroy(arrayvalue, false);
+}
+
+static void onDifficultyContextMenu(int player, bool clickedMyIntention) {
+    int playeridx = player - 1;
+    int i;
+    CP_Difficulty difficulty;
+    STCM_Entries entries = STCM_Entries_Create();
+
+    if (clickedMyIntention) {
+        STCM_Entries_AddEntry(
+            entries, "(default)", StringExternal("CoopPlus/Launcher/IntentionMenuDefault"),
+            CPLMC_SetDifficultyIntention(g_matchmaking, player, CP_c_playerIntentionNone, "", true) == c_emptyText
+        );
+        for (i = 0; i < CP_Difficulty_Count(); i += 1) {
+            difficulty = CP_Difficulty_FromIndex(i);
+            STCM_Entries_AddEntry(
+                entries, difficulty, CP_Difficulty_GetName(difficulty),
+                CPLMC_SetDifficultyIntention(g_matchmaking, player, CP_c_playerIntentionSelect, difficulty, true)
+                == c_emptyText
+            );
+        }
+    }
+    else {
+        STCM_Entries_AddEntry(
+            entries, "(copy)", StringExternal("CoopPlus/Launcher/IntentionMenuCopy"),
+            CPLMC_SetDifficultyIntention(g_matchmaking, player, CP_c_playerIntentionCopy, "", true) == c_emptyText
+        );
+    }
+    
+    STCM_ContextMenu(
+        player, "difficulty", entries, g_mouseTrackerX[playeridx], g_mouseTrackerY[playeridx],
+        onGameSetupContextMenuClicked
+    );
+    STCM_Entries_Destroy(entries);
+}
+
+static void onMapContextMenu(int player, bool clickedMyIntention) {
+    int playeridx = player - 1;
+    STCM_Entries entries = STCM_Entries_Create();
+    ST_Array arrayvalue = ST_Array_Create();
+
+    if (clickedMyIntention) {
+        STCM_Entries_AddEntry(
+            entries, "(default)", StringExternal("CoopPlus/Launcher/IntentionMenuDefault"),
+            CPLMC_SetMapIntention(g_matchmaking, player, CP_c_playerIntentionNone, arrayvalue, true) == c_emptyText
+        );
+        STCM_Entries_AddEntry(
+            entries, "(reveal_noveto)", StringExternal("CoopPlus/Launcher/IntentionMenuMapRevealNoVeto"),
+            CPLMC_SetMapIntention(g_matchmaking, player, CP_c_playerIntentionRevealRandom, arrayvalue, true)
+            == c_emptyText
+        );
+        STSetString(ST_Array_BackInserter(arrayvalue), "VoidThrashing");
+        STCM_Entries_AddEntry(
+            entries, "(dialog:select)", StringExternal("CoopPlus/Launcher/IntentionMenuMapSelect"),
+            CPLMC_SetMapIntention(g_matchmaking, player, CP_c_playerIntentionSelect, arrayvalue, true) == c_emptyText
+        );
+        STCM_Entries_AddEntry(
+            entries, "(dialog:veto_or_reveal)", StringExternal("CoopPlus/Launcher/IntentionMenuMapVetoOrReveal"),
+            (CPLMC_SetMapIntention(g_matchmaking, player, CP_c_playerIntentionVeto, arrayvalue, true) == c_emptyText)
+            || (
+                CPLMC_SetMapIntention(g_matchmaking, player, CP_c_playerIntentionRevealRandom, arrayvalue, true)
+                == c_emptyText
+            )
+        );
+    }
+    else {
+        STCM_Entries_AddEntry(
+            entries, "(copy)", StringExternal("CoopPlus/Launcher/IntentionMenuCopy"),
+            CPLMC_SetMapIntention(g_matchmaking, player, CP_c_playerIntentionCopy, arrayvalue, true) == c_emptyText
+        );
+    }
+    
+    STCM_ContextMenu(
+        player, "map", entries, g_mouseTrackerX[playeridx], g_mouseTrackerY[playeridx], onGameSetupContextMenuClicked
+    );
+
+    ST_Array_Destroy(arrayvalue, false);
+    STCM_Entries_Destroy(entries);
+}
+
+static void onMutatorsContextMenu(int player, bool clickedMyIntention) {
+    int playeridx = player - 1;
+    STCM_Entries entries = STCM_Entries_Create();
+    ST_Array arrayvalue = ST_Array_Create();
+
+    if (clickedMyIntention) {
+        STCM_Entries_AddEntry(
+            entries, "(default)", StringExternal("CoopPlus/Launcher/IntentionMenuDefault"),
+            CPLMC_SetMutatorIntention(g_matchmaking, player, CP_c_playerIntentionNone, arrayvalue, true) == c_emptyText
+        );
+        STCM_Entries_AddEntry(
+            entries, "(reveal_noveto)", StringExternal("CoopPlus/Launcher/IntentionMenuMutatorsRevealNoVeto"),
+            CPLMC_SetMutatorIntention(g_matchmaking, player, CP_c_playerIntentionRevealRandom, arrayvalue, true)
+            == c_emptyText
+        );
+        STSetString(ST_Array_BackInserter(arrayvalue), "WalkingInfested");
+        STCM_Entries_AddEntry(
+            entries, "(dialog:select)", StringExternal("CoopPlus/Launcher/IntentionMenuMutatorsSelect"),
+            CPLMC_SetMutatorIntention(g_matchmaking, player, CP_c_playerIntentionSelect, arrayvalue, true)
+            == c_emptyText
+        );
+        STCM_Entries_AddEntry(
+            entries, "(dialog:veto_or_reveal)", StringExternal("CoopPlus/Launcher/IntentionMenuMutatorsVetoOrReveal"),
+            (
+                CPLMC_SetMutatorIntention(g_matchmaking, player, CP_c_playerIntentionVeto, arrayvalue, true)
+                == c_emptyText
+            )
+            || (
+                CPLMC_SetMutatorIntention(g_matchmaking, player, CP_c_playerIntentionRevealRandom, arrayvalue, true)
+                == c_emptyText
+            )
+        );
+    }
+    else {
+        STCM_Entries_AddEntry(
+            entries, "(copy)", StringExternal("CoopPlus/Launcher/IntentionMenuCopy"),
+            CPLMC_SetMutatorIntention(g_matchmaking, player, CP_c_playerIntentionCopy, arrayvalue, true) == c_emptyText
+        );
+    }
+    
+    STCM_ContextMenu(
+        player, "mutators", entries, g_mouseTrackerX[playeridx], g_mouseTrackerY[playeridx],
+        onGameSetupContextMenuClicked
+    );
+
+    ST_Array_Destroy(arrayvalue, false);
+    STCM_Entries_Destroy(entries);
+}
+
+static void onEnemyCompositionContextMenu(int player, bool clickedMyIntention) {
+    int playeridx = player - 1;
+    STCM_Entries entries = STCM_Entries_Create();
+
+    if (clickedMyIntention) {
+        STCM_Entries_AddEntry(
+            entries, "(default)", StringExternal("CoopPlus/Launcher/IntentionMenuDefault"),
+            CPLMC_SetEnemyCompositionIntention(g_matchmaking, player, CP_c_playerIntentionNone, "", true)
+            == c_emptyText
+        );
+        STCM_Entries_AddEntry(
+            entries, "(reveal_noveto)", StringExternal("CoopPlus/Launcher/IntentionMenuEnemyCompositionRevealNoVeto"),
+            CPLMC_SetEnemyCompositionIntention(g_matchmaking, player, CP_c_playerIntentionRevealRandom, "", true)
+            == c_emptyText
+        );
+        STCM_Entries_AddEntry(
+            entries, "(dialog:select)", StringExternal("CoopPlus/Launcher/IntentionMenuEnemyCompositionSelect"),
+            CPLMC_SetEnemyCompositionIntention(
+                g_matchmaking, player, CP_c_playerIntentionSelect, "ProtossBuildGateway", true
+            ) == c_emptyText
+        );
+    }
+    else {
+        STCM_Entries_AddEntry(
+            entries, "(copy)", StringExternal("CoopPlus/Launcher/IntentionMenuCopy"),
+            CPLMC_SetEnemyCompositionIntention(g_matchmaking, player, CP_c_playerIntentionCopy, "", true)
+            == c_emptyText
+        );
+    }
+
+    STCM_ContextMenu(
+        player, "enemyComposition", entries, g_mouseTrackerX[playeridx], g_mouseTrackerY[playeridx],
+        onGameSetupContextMenuClicked
+    );
+
+    STCM_Entries_Destroy(entries);
+}
+
+static void onMapSelected(int player, int intention, ST_Array mapList) {
+    text error = CPLMC_SetMapIntention(g_matchmaking, player, intention, mapList, false);
+    if (error == c_emptyText) {
+        CPLUI_UpdateGameSetup(g_matchmaking, false);
+    }
+    else {
+        CPLUI_Tooltip(player, error);
+    }
+}
+
+static void onMutatorSelected(int player, int intention, ST_Array mutatorsList) {
+    text error = CPLMC_SetMutatorIntention(g_matchmaking, player, intention, mutatorsList, false);
+    if (error == c_emptyText) {
+        CPLUI_UpdateGameSetup(g_matchmaking, false);
+    }
+    else {
+        CPLUI_Tooltip(player, error);
+    }
+}
+
+static void onEnemyCompositionSelected(int player, int intention, CP_EnemyComposition enemyComposition) {
+    text error = CPLMC_SetEnemyCompositionIntention(g_matchmaking, player, intention, enemyComposition, false);
+    if (error == c_emptyText) {
+        CPLUI_UpdateGameSetup(g_matchmaking, false);
+    }
+    else {
+        CPLUI_Tooltip(player, error);
+    }
+}
+
+bool CPL_OnInit(bool testConds, bool runActions) {
+    CPLUI_Callbacks callbacks;
+
+    if (!runActions) {
+        return true;
+    }
+
+    g_playerLeftGame[0] = (PlayerStatus(1) != c_playerStatusActive);
+    //g_playerLeftGame[1] = (PlayerStatus(2) != c_playerStatusActive);
+
+    g_matchmaking = CP_Matchmaking_Create();
+    CPLMC_InitializeMatchmaking(g_matchmaking, GetVariant(), g_playerLeftGame[0], g_playerLeftGame[1]);
+    
+    // Start launcher UI
+    callbacks.onCommanderClicked = onCommanderClicked;
+    callbacks.onCommanderContextMenu = onCommanderContextMenu;
+    callbacks.onGameModeChangeRequested = onGameModeChangeRequested;
+    callbacks.onGameModeScreenRequested = onGameModeScreenRequested;
+    callbacks.onReadyClicked = onReadyClicked;
+    callbacks.onCustomizeClicked = onCustomizeClicked;
+
+    callbacks.onDifficultyContextMenu = onDifficultyContextMenu;
+    callbacks.onMapContextMenu = onMapContextMenu;
+    callbacks.onMutatorsContextMenu = onMutatorsContextMenu;
+    callbacks.onEnemyCompositionContextMenu = onEnemyCompositionContextMenu;
+
+    callbacks.onMapSelected = onMapSelected;
+    callbacks.onMutatorSelected = onMutatorSelected;
+    callbacks.onEnemyCompositionSelected = onEnemyCompositionSelected;
+
+    libNtve_gf_HideGameUI(false, PlayerGroupAll());
+    CPLUI_Create(g_matchmaking, callbacks);
+    
+    return true;
+}
+
+bool CPL_OnMouseMove(bool testConds, bool runActions) {
+    int playeridx;
+
+    if (!runActions) {
+        return true;
+    }
+
+    playeridx = EventPlayer() - 1;
+
+    g_mouseTrackerX[playeridx] = EventMouseMovedPosXUI();
+    g_mouseTrackerY[playeridx] = EventMouseMovedPosYUI();
+    
+    return true;
+}
+
+bool CPL_OnChatMessage(bool testConds, bool runActions) {
+    string msg = EventChatMessage(false);
+    STCM_Entries entries;
+    ST_Array array;
+    ST_Array object;
+    string serialized;
+    byte bv;
+    int i;
+    string value;
+
+    if (!runActions) {
+        return true;
+    }
+
+    if (ST_StringFind(msg, "-fr") != -1) {
+        CPLMC_PlayerReady(g_matchmaking, 1, true);
+        CPLMC_PlayerReady(g_matchmaking, 2, true);
+        CPLMC_FinalizeSetup(g_matchmaking);
+        CPLUI_UpdateGameSetup(g_matchmaking, false);
+    }
+    if (ST_StringFind(msg, "-sample2") != -1) {
+        array = ST_Array_Create();
+
+        CPLMC_SetDifficultyIntention(g_matchmaking, 2, CP_c_playerIntentionSelect, "Normal", false);
+
+        STSetString(ST_Array_BackInserter(array), "TempleOfThePast");
+        STSetString(ST_Array_BackInserter(array), "ChainOfAscension");
+        STSetString(ST_Array_BackInserter(array), "Malwarfare");
+        CPLMC_SetMapIntention(g_matchmaking, 2, CP_c_playerIntentionRevealRandom, array, false);
+        ST_Array_Clear(array, false);
+
+        STSetString(ST_Array_BackInserter(array), "BoomBots");
+        STSetString(ST_Array_BackInserter(array), "TheUsualSuspects");
+        STSetString(ST_Array_BackInserter(array), "MomentOfSilence");
+        STSetString(ST_Array_BackInserter(array), "Propagate");
+        STSetString(ST_Array_BackInserter(array), "Random");
+        STSetString(ST_Array_BackInserter(array), "Random");
+        CPLMC_SetMutatorIntention(g_matchmaking, 2, CP_c_playerIntentionSelect, array, false);
+        ST_Array_Clear(array, false);
+
+        CPLMC_SetEnemyCompositionIntention(g_matchmaking, 2, CP_c_playerIntentionSelect, "ZergBuildMutaLing", false);
+
+        STSetString(ST_Array_BackInserter(array), "Kerrigan");
+        CPLMC_SetCommanderIntention(g_matchmaking, 2, CP_c_playerIntentionSelect, array, false);
+        ST_Array_Clear(array, false);
+
+        CPLMC_PlayerReady(g_matchmaking, 2, true);
+
+        CPLUI_UpdateGameSetup(g_matchmaking, false);
+
+        ST_Array_Destroy(array, false);
+    }
+    if (ST_StringFind(msg, "-jump") != -1) {
+        if (GameIsOnline()) {
+            OnlineMapToMapLoad(78, PlayerGroupAll(), PlayerGroupEmpty());
+        }
+        else {
+            GameSetNextMap("ChainOfAscension-Terran");
+            GameOver(1, c_gameOverVictory, false, false);
+            GameOver(2, c_gameOverVictory, false, false);
+        }
+    }
+    if (ST_StringFind(msg, "-qc") != -1) {
+        CPLUI_Tooltip(EventPlayer(), StringToText(GameAttributeGameValue("1")));
+    }
+    
+    return true;
+}
+
+bool CPL_OnPlayerLeft(bool testConds, bool runActions) {
+    int player;
+    int playeridx;
+
+    if (!runActions) {
+        return true;
+    }
+
+    player = EventPlayer();
+    playeridx = player - 1;
+    
+    g_playerLeftGame[playeridx] = true;
+    CPLMC_PlayerQuit(g_matchmaking, player);
+
+    return true;
+}
+
+void CPL_Main() {
+    trigger onMouseMove;
+    trigger onPlayerLeft;
+
+    CP_InitLib();
+    STCM_InitLib();
+    CPLMC_InitLib();
+    CPLUI_InitLib();
+
+    ST_SetDebugMode(true);
+
+    onMouseMove = TriggerCreate("CPL_OnMouseMove");
+    onPlayerLeft = TriggerCreate("CPL_OnPlayerLeft");
+    TriggerAddEventMouseMoved(onMouseMove, 1);
+    TriggerAddEventMouseMoved(onMouseMove, 2);
+    TriggerAddEventChatMessage(TriggerCreate("CPL_OnChatMessage"), c_playerAny, "", false);
+    TriggerAddEventPlayerLeft(onPlayerLeft, 1, c_gameResultUndecided);
+    TriggerAddEventPlayerLeft(onPlayerLeft, 1, c_gameResultUndecided);
+    TriggerAddEventMapInit(TriggerCreate("CPL_OnInit"));
+}

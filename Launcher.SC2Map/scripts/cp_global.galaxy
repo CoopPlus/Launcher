@@ -1,0 +1,318 @@
+include "TriggerLibs/NativeLib"
+include "scripts/st_utility"
+
+//////////// Exports
+
+text c_emptyText;
+
+// UserType entries
+typedef string CP_GameMode;
+typedef string CP_Difficulty;
+typedef string CP_Map;
+typedef string CP_Mutator;
+typedef string CP_EnemyComposition;
+typedef string CP_Commander;
+
+const int CP_c_prestigeCount = 4;
+const int CP_c_matchmakingRandomStatusNone = 0;
+const int CP_c_matchmakingRandomStatusHidden = 1;
+const int CP_c_matchmakingRandomStatusRevealed = 2;
+
+const int CP_c_phaseModeSelection = 0;
+const int CP_c_phaseMain = 1;
+const int CP_c_phaseCommanderCustomization = 2;
+
+const int CP_c_playerIntentionNone = 0;
+const int CP_c_playerIntentionVeto = 1;
+const int CP_c_playerIntentionRevealRandom = 2;
+const int CP_c_playerIntentionSelect = 3;
+const int CP_c_playerIntentionCopy = 4;
+
+const int CP_c_maxMapBanCount = 3;
+const int CP_c_maxMutatorBanCount = 2;
+const int CP_c_maxMutatorSelectCount = 10;
+const int CP_c_maxCommanderBanCount = 6;
+
+// struct CP_Matchmaking {
+//     // These info only persists in launcher
+//     struct CP_MatchmakingLauncher {
+//         struct CP_MatchmakingPlayer {
+//             int difficultyIntention; // None, Select
+//             CP_Difficulty difficulty; // Select
+//             int mapIntention; // None, Veto, RevealRandom, Select
+//             CP_Map[] mapList; // Veto, RevealRandom, Select (1 instance only)
+//             int mutatorsIntention; // None, Veto, RevealRandom, Select
+//             CP_Mutator[] mutatorsList; // Veto, RevealRandom, Select
+//             int enemyCompositionIntention; // None, RevealRandom, Select
+//             CP_EnemyComposition enemyComposition; // Select
+//             int commanderIntention; // None, Veto, Select
+//             CP_Commander[] commanderList; // Veto, Select (1 instance only)
+//             
+//             bool ready;
+//         }[2] player;
+//     } launcher;
+
+//     // These info passes to the rest of the maps
+//     struct CP_MatchmakingResult {
+//         CP_GameMode gameMode;
+
+//         CP_Difficulty difficulty;
+//         string map; // (maps) A single CP_Map instance; (launcher) or ""
+//         CP_Mutator[] mutators; // Use @mutatorsRandomStatus to distinguish the empty array case
+//         string enemyComposition; // (maps) A single CP_EnemyComposition instance; (launcher) or ""
+//         string[2] commander; // (maps) A single CP_Commander instance; (launcher) or ""
+
+//         struct CP_MatchmakingCommanderCustomization {
+//             int prestige;
+//             int[6] mastery;
+//         }[2] commanderCustomization;
+
+//         // Random/hidden status related
+//         int mapRandomStatus;
+//         int[2] mapVetoCount;
+//         int mutatorsRandomStatus;
+//         int[2] mutatorsVetoCount;
+//         int enemyCompositionRandomStatus;
+//         int[2] commanderRandomStatus;
+//         int[2] commanderVetoCount;
+
+//         bool[2] playerQuitted;
+//     } result;
+// };
+
+typedef ST_Object CP_Matchmaking;
+CP_Matchmaking CP_Matchmaking_Create();
+void CP_Matchmaking_Destroy(CP_Matchmaking obj) { ST_Object_Destroy(obj, true); }
+void CP_Matchmaking_Copy(CP_Matchmaking lhs, CP_Matchmaking rhs) { ST_Object_Copy(lhs, rhs, true); }
+
+typedef ST_Object CP_MatchmakingLauncher;
+CP_MatchmakingLauncher CP_MatchmakingLauncher_Create();
+void CP_MatchmakingLauncher_Destroy(CP_MatchmakingLauncher obj) { ST_Object_Destroy(obj, true); }
+void CP_MatchmakingLauncher_Copy(CP_MatchmakingLauncher lhs, CP_MatchmakingLauncher rhs) { ST_Object_Copy(lhs, rhs, true); }
+
+typedef ST_Object CP_MatchmakingPlayer;
+CP_MatchmakingPlayer CP_MatchmakingPlayer_Create();
+void CP_MatchmakingPlayer_Destroy(CP_MatchmakingPlayer obj) { ST_Object_Destroy(obj, true); }
+void CP_MatchmakingPlayer_Copy(CP_MatchmakingPlayer lhs, CP_MatchmakingPlayer rhs) { ST_Object_Copy(lhs, rhs, true); }
+
+typedef ST_Object CP_MatchmakingResult;
+CP_MatchmakingResult CP_MatchmakingResult_Create();
+void CP_MatchmakingResult_Destroy(CP_MatchmakingResult obj) { ST_Object_Destroy(obj, true); }
+void CP_MatchmakingResult_Copy(CP_MatchmakingResult lhs, CP_MatchmakingResult rhs) { ST_Object_Copy(lhs, rhs, true); }
+
+typedef ST_Object CP_MatchmakingCommanderCustomization;
+CP_MatchmakingCommanderCustomization CP_MatchmakingCommanderCustomization_Create();
+void CP_MatchmakingCommanderCustomization_Destroy(CP_MatchmakingCommanderCustomization obj) { ST_Object_Destroy(obj, true); }
+void CP_MatchmakingCommanderCustomization_Copy(CP_MatchmakingCommanderCustomization lhs, CP_MatchmakingCommanderCustomization rhs) { ST_Object_Copy(lhs, rhs, true); }
+
+
+
+//// Library initialization
+
+void CP_InitLib();
+
+
+
+//// Utility functions
+
+// Convert race integer constants into gamelink::Race value
+string CP_ConvertRaceToGameLink(int race);
+
+
+
+//// CP_GameMode lookup
+
+CP_GameMode CP_GameMode_FromIndex(int index) { return UserDataInstance("CP_GameMode", index + 1); }
+int CP_GameMode_Count();
+text CP_GameMode_GetName(CP_GameMode gameMode) { return UserDataGetText("CP_GameMode", gameMode, "Name", 1); }
+int CP_GameMode_GetLauncherNavigationIndex(CP_GameMode gameMode) { return UserDataGetInt("CP_GameMode", gameMode, "LauncherNavigationIndex", 1); }
+string CP_GameMode_GetLauncherCutsceneMode(CP_GameMode gameMode) { return UserDataGetString("CP_GameMode", gameMode, "LauncherCutsceneMode", 1); }
+string CP_GameMode_GetStrategyDifficulty(CP_GameMode gameMode) { return UserDataGetString("CP_GameMode", gameMode, "StrategyDifficulty", 1); }
+string CP_GameMode_GetStrategyMap(CP_GameMode gameMode) { return UserDataGetString("CP_GameMode", gameMode, "StrategyMap", 1); }
+string CP_GameMode_GetStrategyMutation(CP_GameMode gameMode) { return UserDataGetString("CP_GameMode", gameMode, "StrategyMutation", 1); }
+string CP_GameMode_GetStrategyEnemyComposition(CP_GameMode gameMode) { return UserDataGetString("CP_GameMode", gameMode, "StrategyEnemyComposition", 1); }
+
+
+
+//// CP_Difficulty lookup
+
+CP_Difficulty CP_Difficulty_FromIndex(int index) { return UserDataInstance("CP_Difficulty", index + 1); }
+int CP_Difficulty_Count();
+text CP_Difficulty_GetName(CP_Difficulty difficulty) { return UserDataGetText("CP_Difficulty", difficulty, "Name", 1); }
+
+
+
+//// CP_Map lookup
+
+CP_Map CP_Map_FromIndex(int index) { return UserDataInstance("CP_Map", index + 1); }
+int CP_Map_Count();
+string CP_Map_GetLoadingScreen(CP_Map map) { return UserDataGetImagePath("CP_Map", map, "LoadingScreen", 1); }
+string CP_Map_GetLoadingScreenRandom() { return "Assets/Textures/ui_battlenet_glue_coop_mappreview_random.dds"; }
+int CP_Map_GetMapOnlineSlot(CP_Map map) { return UserDataGetInt("CP_Map", map, "MapOnlineSlot", 1); }
+text CP_Map_GetName(CP_Map map) { return UserDataGetText("CP_Map", map, "Name", 1); }
+text CP_Map_GetNameRandom() { return StringExternal("UI/ScreenCoopCampaign/MapSelectionPanel/RandomMap"); }
+
+
+//// CP_Mutator lookup
+
+CP_Mutator CP_Mutator_FromIndex(int index) { return UserDataInstance("CP_Mutator", index + 1); }
+int CP_Mutator_Count();
+text CP_Mutator_GetName(CP_Mutator mutator) { return UserDataGetText("CP_Mutator", mutator, "Name", 1); }
+text CP_Mutator_GetDescription(CP_Mutator mutator) { return UserDataGetText("CP_Mutator", mutator, "Description", 1); }
+string CP_Mutator_GetIcon(CP_Mutator mutator) { return UserDataGetImagePath("CP_Mutator", mutator, "Icon", 1); }
+bool CP_Mutator_GetRandomAllowed(CP_Mutator mutator) { return UserDataGetInt("CP_Mutator", mutator, "RandomAllowed", 1) != 0;}
+bool CP_Mutator_GetRandomFirstAllowed(CP_Mutator mutator) { return UserDataGetInt("CP_Mutator", mutator, "RandomFirstAllowed", 1) != 0;}
+bool CP_Mutator_GetCustomAllowed(CP_Mutator mutator) { return UserDataGetInt("CP_Mutator", mutator, "CustomAllowed", 1) != 0;}
+bool CP_Mutator_GetCustomAllowMultiple(CP_Mutator mutator) { return UserDataGetInt("CP_Mutator", mutator, "CustomAllowMultiple", 1) != 0;}
+bool CP_Mutator_GetUnfinished(CP_Mutator mutator) { return UserDataGetInt("CP_Mutator", mutator, "Unfinished", 1) != 0;}
+
+
+
+//// CP_EnemyComposition lookup
+
+CP_EnemyComposition CP_EnemyComposition_FromIndex(int index) { return UserDataInstance("CP_EnemyComposition", index + 1); }
+int CP_EnemyComposition_Count();
+string CP_EnemyComposition_GetRace(CP_EnemyComposition enemyComposition) { return UserDataGetGameLink("CP_EnemyComposition", enemyComposition, "Race", 1); }
+string CP_EnemyComposition_GetRaceRandom() { return "Rand"; }
+text CP_EnemyComposition_GetName(CP_EnemyComposition enemyComposition) { return UserDataGetText("CP_EnemyComposition", enemyComposition, "Name", 1); }
+text CP_EnemyComposition_GetNameRandom() { return StringExternal("CoopPlus/Launcher/UnknownEnemyComposition"); }
+text CP_EnemyComposition_GetDescription(CP_EnemyComposition enemyComposition) { return UserDataGetText("CP_EnemyComposition", enemyComposition, "Description", 1); }
+text CP_EnemyComposition_GetCategory(CP_EnemyComposition enemyComposition) { return UserDataGetText("CP_EnemyComposition", enemyComposition, "Category", 1); }
+
+
+
+//// CP_Commander lookup
+
+CP_Commander CP_Commander_FromIndex(int index) { return UserDataInstance("CP_Commander", index + 1); }
+string CP_Commander_Random() { return "Random"; }
+text CP_Commander_GetName(CP_Commander commander) { return StringExternal("Commander/Name/" + commander); }
+text CP_Commander_GetNameRandom() { return StringExternal("Commander/Name/Random"); }
+int CP_Commander_Count();
+
+
+
+////////////
+
+static bool g_initialized;
+
+static int c_CP_GameMode_count;
+static int c_CP_Difficulty_count;
+static int c_CP_Map_count;
+static int c_CP_Mutator_count;
+static int c_CP_EnemyComposition_count;
+static int c_CP_Commander_count;
+
+
+
+////////////
+
+CP_Matchmaking CP_Matchmaking_Create() {
+    CP_Matchmaking ret = ST_Object_Create();
+    STSetObject(STR(ret, ".launcher"), CP_MatchmakingLauncher_Create());
+    STSetObject(STR(ret, ".result"), CP_MatchmakingResult_Create());
+    return ret;
+}
+CP_MatchmakingLauncher CP_MatchmakingLauncher_Create() {
+    CP_MatchmakingLauncher ret = ST_Object_Create();
+    STSetArray(STR(ret, ".player"), ST_Array_Create());
+    STSetObject(STR(ret, ".player[*]"), CP_MatchmakingPlayer_Create());
+    STSetObject(STR(ret, ".player[*]"), CP_MatchmakingPlayer_Create());
+    return ret;
+}
+CP_MatchmakingPlayer CP_MatchmakingPlayer_Create() {
+    CP_MatchmakingPlayer ret = ST_Object_Create();
+    STSetInt(STR(ret, ".difficultyIntention"), CP_c_playerIntentionNone);
+    STSetString(STR(ret, ".difficulty"), "");
+    STSetInt(STR(ret, ".mapIntention"), CP_c_playerIntentionNone);
+    STSetArray(STR(ret, ".mapList"), ST_Array_Create());
+    STSetInt(STR(ret, ".mutatorsIntention"), CP_c_playerIntentionNone);
+    STSetArray(STR(ret, ".mutatorsList"), ST_Array_Create());
+    STSetInt(STR(ret, ".enemyCompositionIntention"), CP_c_playerIntentionNone);
+    STSetString(STR(ret, ".enemyComposition"), "");
+    STSetInt(STR(ret, ".commanderIntention"), CP_c_playerIntentionNone);
+    STSetArray(STR(ret, ".commanderList"), ST_Array_Create());
+    STSetBool(STR(ret, ".ready"), false);
+    return ret;
+}
+CP_MatchmakingResult CP_MatchmakingResult_Create() {
+    CP_MatchmakingResult ret = ST_Object_Create();
+    STSetString(STR(ret, ".gameMode"), "");
+    STSetString(STR(ret, ".difficulty"), "");
+    STSetString(STR(ret, ".map"), "");
+    STSetArray(STR(ret, ".mutators"), ST_Array_Create());
+    STSetString(STR(ret, ".enemyComposition"), "");
+    STSetArray(STR(ret, ".commander"), ST_Array_Create());
+    STSetString(STR(ret, ".commander[*]"), "");
+    STSetString(STR(ret, ".commander[*]"), "");
+    STSetArray(STR(ret, ".commanderCustomization"), ST_Array_Create());
+    STSetObject(STR(ret, ".commanderCustomization[*]"), CP_MatchmakingCommanderCustomization_Create());
+    STSetObject(STR(ret, ".commanderCustomization[*]"), CP_MatchmakingCommanderCustomization_Create());
+    STSetInt(STR(ret, ".mapRandomStatus"), CP_c_matchmakingRandomStatusNone);
+    STSetArray(STR(ret, ".mapVetoCount"), ST_Array_Create());
+    STSetInt(STR(ret, ".mapVetoCount[*]"), 0);
+    STSetInt(STR(ret, ".mapVetoCount[*]"), 0);
+    STSetInt(STR(ret, ".mutatorsRandomStatus"), CP_c_matchmakingRandomStatusNone);
+    STSetArray(STR(ret, ".mutatorsVetoCount"), ST_Array_Create());
+    STSetInt(STR(ret, ".mutatorsVetoCount[*]"), 0);
+    STSetInt(STR(ret, ".mutatorsVetoCount[*]"), 0);
+    STSetInt(STR(ret, ".enemyCompositionRandomStatus"), CP_c_matchmakingRandomStatusNone);
+    STSetArray(STR(ret, ".commanderRandomStatus"), ST_Array_Create());
+    STSetInt(STR(ret, ".commanderRandomStatus[*]"), CP_c_matchmakingRandomStatusNone);
+    STSetInt(STR(ret, ".commanderRandomStatus[*]"), CP_c_matchmakingRandomStatusNone);
+    STSetArray(STR(ret, ".commanderVetoCount"), ST_Array_Create());
+    STSetInt(STR(ret, ".commanderVetoCount[*]"), 0);
+    STSetInt(STR(ret, ".commanderVetoCount[*]"), 0);
+    STSetArray(STR(ret, ".playerQuitted"), ST_Array_Create());
+    STSetBool(STR(ret, ".playerQuitted[*]"), false);
+    STSetBool(STR(ret, ".playerQuitted[*]"), false);
+    return ret;
+}
+CP_MatchmakingCommanderCustomization CP_MatchmakingCommanderCustomization_Create() {
+    CP_MatchmakingResult ret = ST_Object_Create();
+    STSetInt(STR(ret, ".prestige"), 0);
+    STSetArray(STR(ret, ".mastery"), ST_Array_Create());
+    STSetInt(STR(ret, ".mastery[*]"), 0);
+    STSetInt(STR(ret, ".mastery[*]"), 0);
+    STSetInt(STR(ret, ".mastery[*]"), 0);
+    STSetInt(STR(ret, ".mastery[*]"), 0);
+    STSetInt(STR(ret, ".mastery[*]"), 0);
+    STSetInt(STR(ret, ".mastery[*]"), 0);
+    return ret;
+}
+
+void CP_InitLib() {
+    if (g_initialized) {
+        return;
+    }
+
+    ST_InitLib();
+
+    c_CP_GameMode_count = UserDataInstanceCount("CP_GameMode");
+    c_CP_Difficulty_count = UserDataInstanceCount("CP_Difficulty");
+    c_CP_Map_count = UserDataInstanceCount("CP_Map");
+    c_CP_Mutator_count = UserDataInstanceCount("CP_Mutator");
+    c_CP_EnemyComposition_count = UserDataInstanceCount("CP_EnemyComposition");
+    c_CP_Commander_count = UserDataInstanceCount("CP_Commander");
+
+    g_initialized = true;
+}
+
+string CP_ConvertRaceToGameLink(int race) {
+    if (race == c_raceTerran) {
+        return "Terr";
+    }
+    else if (race == c_raceZerg) {
+        return "Zerg";
+    }
+    else if (race == c_raceProtoss) {
+        return "Prot";
+    }
+    return "";
+}
+
+int CP_GameMode_Count() { return c_CP_GameMode_count; }
+int CP_Difficulty_Count() { return c_CP_Difficulty_count; }
+int CP_Map_Count() { return c_CP_Map_count; }
+int CP_Mutator_Count() { return c_CP_Mutator_count; }
+int CP_EnemyComposition_Count() { return c_CP_EnemyComposition_count; }
+int CP_Commander_Count() { return c_CP_Commander_count; }

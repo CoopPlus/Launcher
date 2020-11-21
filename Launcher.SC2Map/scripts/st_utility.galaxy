@@ -1,0 +1,1782 @@
+// Asserts had been removed with: r"^ *st_assert\((?!bool)(.|\n)*?\);\n^"
+
+include "TriggerLibs/NativeLib"
+
+//////////// Exports
+
+//// Dynamic array, object and reference
+
+const int c_dtypeNonexistent = 0;
+const int c_dtypeRaw = 1;
+const int c_dtypeArray = 2;
+const int c_dtypeObject = 3;
+const int c_dtypeArrayMemberRef = 4;
+const int c_dtypeArrayBackInserterRef = 5;
+const int c_dtypeObjectMemberRef = 6;
+const int c_dtypeObjectInserterRef = 7;
+const int c_dtypeDirectArrayRef = 8;
+const int c_dtypeDirectObjectRef = 9;
+
+static const int c_countDtype = 10;
+
+typedef int ST_Array;
+typedef int ST_Object;
+typedef string ST_Ref;
+
+
+
+// Library Initialization
+
+void ST_InitLib();
+
+
+
+//// Debugging utilities
+
+// Determine debug mode. ST_DebugPrint and ST_Assert only works on debug mode.
+// Initially the game is deemed debug iff GameIsOnline() is false.
+void ST_SetDebugMode(bool debug);
+
+void ST_DebugPrint(string msg);
+void ST_DebugPrintText(text msg);
+void ST_DebugPrintArrayOrObject(int arrayOrObject);
+void ST_Assert(bool pred, string msg);
+
+
+
+//// "Sane" string functions: 0-based, [start, end)
+
+// Returns -1 if not found
+int ST_StringFind(string str, string target);
+
+// Python-like negative index is supported
+string ST_StringSub(string str, int start, int end);
+
+ST_Array ST_StringSplit(string str, string sep);
+
+
+
+//// "Sane" text expression functions: expression has its own object model
+
+typedef string ST_TextExpression;
+
+ST_TextExpression ST_TextExpression_CreateFromTextID(string textId);
+ST_TextExpression ST_TextExpression_CreateFromRawText(text rawText);
+void ST_TextExpression_SetToken(ST_TextExpression textExpression, string token, text value);
+text ST_TextExpression_Result(ST_TextExpression textExpression);
+void ST_TextExpression_Destroy(ST_TextExpression textExpression);
+
+// One-token shortcut
+text ST_TextExpressionShortcut(string textId, string token, text value);
+
+
+
+//// Cached trigger creation function
+
+trigger ST_TriggerGlobalCreate(string func);
+
+
+
+//// Raw memory management functions
+
+int ST_DataTableInstanceCreate();
+void ST_DataTableInstanceDestroy(int datatable);
+
+// Fully copy @lhs into @rhs. Unlike DataTableInstanceCopy(), @lhs is cleared before copied.
+void ST_DataTableInstanceCopy(int lhs, int rhs);
+
+void ST_DataTableInstanceCopySingleValue(int dstDatatable, string keyDst, int srcDatatable, string keySrc);
+bool ST_DataTableInstanceEqual(int lhs, int rhs);
+
+
+
+//// Misc utilities
+
+int ST_FindStringFromStringArray(ST_Array array, string value);
+bool ST_StringArrayMultisetEquivalency(ST_Array lhs, ST_Array rhs);
+
+
+
+//// Array functions
+
+ST_Array ST_Array_Create();
+void ST_Array_Destroy(ST_Array array, bool deep);
+void ST_Array_Copy(ST_Array lhs, ST_Array rhs, bool deep);
+void ST_Array_Clear(ST_Array array, bool deep);
+bool ST_Array_Equal(ST_Array lhs, ST_Array rhs);
+void ST_Array_SetDestructor(ST_Array array, trigger destructor);
+ST_Array ST_EventArray();
+
+// Accessors
+
+ST_Ref ST_Array_ByIndex(ST_Array array, int index);
+ST_Ref ST_Array_BackInserter(ST_Array array);
+
+// Utility
+
+bool ST_Array_DeleteRange(ST_Array array, int begin, int end);
+int ST_Array_Count(ST_Array array);
+
+
+//// Object functions
+
+ST_Object ST_Object_Create();
+void ST_Object_Destroy(ST_Object object, bool deep);
+void ST_Object_Copy(ST_Object lhs, ST_Object rhs, bool deep);
+void ST_Object_Clear(ST_Object object, bool deep);
+bool ST_Object_Equal(ST_Object lhs, ST_Object rhs);
+void ST_Object_SetDestructor(ST_Object object, trigger destructor);
+ST_Object ST_EventObject();
+
+// Accessors
+
+ST_Ref ST_Object_Query(ST_Object object, string member);
+ST_Ref ST_Object_ByIndex(ST_Object object, int index);
+
+// Utility
+
+int ST_Object_Count(ST_Object object);
+
+
+
+//// Ref Functions
+
+// String-based query with chain of ".membername" and "[arrayindex]".
+//
+// 1. Chain ".membername" and "[arrayindex]" for accessing a reference.
+// 2. For array indexing, a special indexing "[*]" will give you a back inserter (REF: ST_ArrayBackInserter()).
+//    You may set a value to this object for pushback effect.
+// 3. For object members, a query toward nonexistent member will give you an inserter.
+//
+// Note: if the object member is named with ".", "[" or "]" then this query will not work;
+//       use ST_Object_Query() manually in that case.
+ST_Ref STR(int arrayOrObject, string accessor);
+ST_Ref STR_R(ST_Ref ref, string accessor);
+
+// Existential and deletion query
+bool STR_Exists(ST_Ref ref);
+void STR_DeleteFromParent(ST_Ref ref);
+
+// Referring information
+int STR_IndexFromParentArray(ST_Ref ref);
+string STR_MemberNameFromParentObject(ST_Ref ref);
+
+// Type identification
+int STR_GetValueType(ST_Ref ref);
+int STR_GetRawValueType(ST_Ref ref);
+
+// Getters
+ST_Array STGetArray(ST_Ref ref);
+ST_Object STGetObject(ST_Ref ref);
+bool STGetBool(ST_Ref ref);
+int STGetInt(ST_Ref ref);
+fixed STGetFixed(ST_Ref ref);
+string STGetString(ST_Ref ref);
+text STGetText(ST_Ref ref);
+trigger STGetTrigger(ST_Ref ref);
+
+// Setters
+void STSetArray(ST_Ref ref, ST_Array value);
+void STSetObject(ST_Ref ref, ST_Object value);
+void STSetBool(ST_Ref ref, bool value);
+void STSetInt(ST_Ref ref, int value);
+void STSetFixed(ST_Ref ref, fixed value);
+void STSetString(ST_Ref ref, string value);
+void STSetText(ST_Ref ref, text value);
+void STSetTrigger(ST_Ref ref, trigger value);
+
+// Note: invalidation rules
+//
+// 1. (All) If the parent object that a reference holds is destroyed, then that reference is INVALIDATED.
+// 2. (Array member reference) if an object is inserted or deleted in the parent, all references pointing to that
+//    object or any of its successors are INVALIDATED.
+// 3. (Object member reference) If an object is deleted in the parent, all references pointing to that object is
+//    INVALIDATED.
+//
+// An invalidated reference can only be destroyed -- you cannot use it except for calling ST_Ref_Delete().
+
+
+
+////////////
+
+static bool g_initialized;
+static int g_datatableFreelist;
+static bool g_debug;
+static int g_textExpressionId;
+static ST_Object g_eventObject;
+static ST_Array g_eventArray;
+static ST_Object g_cachedTriggers;
+
+// Common metatags
+static string c_metatagType = "#type";
+static string c_metatagCount = "#count";
+static string c_metatagMemberTypes = "#membertypes";
+static string c_metatagMemberValues = "#membervalues";
+static string c_metatagDestructor = "#destructor";
+
+// Dispatch tables
+static funcref<STR>[c_countDtype] g_dispatchTableSTR_AO;
+static funcref<STR_Exists>[c_countDtype] g_dispatchTableSTR_Exists;
+static funcref<STR_DeleteFromParent>[c_countDtype] g_dispatchTableSTR_DeleteFromParent;
+static funcref<STR_IndexFromParentArray>[c_countDtype] g_dispatchTableSTR_IndexFromParentArray;
+static funcref<STR_MemberNameFromParentObject>[c_countDtype] g_dispatchTableSTR_MemberNameFromParentObject;
+static funcref<STR_GetValueType>[c_countDtype] g_dispatchTableSTR_GetValueType;
+static funcref<STR_GetRawValueType>[c_countDtype] g_dispatchTableSTR_GetRawValueType;
+static funcref<STGetArray>[c_countDtype] g_dispatchTableSTGetArray;
+static funcref<STGetObject>[c_countDtype] g_dispatchTableSTGetObject;
+static funcref<STGetBool>[c_countDtype] g_dispatchTableSTGetBool;
+static funcref<STGetInt>[c_countDtype] g_dispatchTableSTGetInt;
+static funcref<STGetFixed>[c_countDtype] g_dispatchTableSTGetFixed;
+static funcref<STGetString>[c_countDtype] g_dispatchTableSTGetString;
+static funcref<STGetText>[c_countDtype] g_dispatchTableSTGetText;
+static funcref<STGetTrigger>[c_countDtype] g_dispatchTableSTGetTrigger;
+static funcref<STSetArray>[c_countDtype] g_dispatchTableSTSetArray;
+static funcref<STSetObject>[c_countDtype] g_dispatchTableSTSetObject;
+static funcref<STSetBool>[c_countDtype] g_dispatchTableSTSetBool;
+static funcref<STSetInt>[c_countDtype] g_dispatchTableSTSetInt;
+static funcref<STSetFixed>[c_countDtype] g_dispatchTableSTSetFixed;
+static funcref<STSetString>[c_countDtype] g_dispatchTableSTSetString;
+static funcref<STSetText>[c_countDtype] g_dispatchTableSTSetText;
+static funcref<STSetTrigger>[c_countDtype] g_dispatchTableSTSetTrigger;
+
+static void SetupDispatchTable();
+
+static int TypeOfRef(ST_Ref ref) {
+    if (StringContains(ref, "a", c_stringBegin, true)) { return c_dtypeArrayMemberRef; }
+    if (StringContains(ref, "A", c_stringBegin, true)) { return c_dtypeArrayBackInserterRef; }
+    if (StringContains(ref, "o", c_stringBegin, true)) { return c_dtypeObjectMemberRef; }
+    if (StringContains(ref, "O", c_stringBegin, true)) { return c_dtypeObjectInserterRef; }
+    if (StringContains(ref, "v", c_stringBegin, true)) { return c_dtypeDirectArrayRef; }
+    if (StringContains(ref, "V", c_stringBegin, true)) { return c_dtypeDirectObjectRef; }
+    ST_Assert(false, "TypeOfRef(): invalid reference");
+    return c_dtypeNonexistent;
+}
+
+static int TypeOfAO(int arrayOrObject) {
+    return DataTableInstanceGetInt(arrayOrObject, c_metatagType);
+}
+
+static int GetMemberTypesTable(int arrayOrObject) {
+    return DataTableInstanceGetInt(arrayOrObject, c_metatagMemberTypes);
+}
+
+static int GetMemberValuesTable(int arrayOrObject) {
+    return DataTableInstanceGetInt(arrayOrObject, c_metatagMemberValues);
+}
+
+int GetMemberType(int membertypes, string key) {
+    if (DataTableInstanceValueExists(membertypes, key)) {
+        return DataTableInstanceGetInt(membertypes, key);
+    }
+    return c_dtypeNonexistent;
+}
+
+void SetMemberType(int membertypes, string key, int type) {
+    DataTableInstanceSetInt(membertypes, key, type);
+}
+
+static int GetMemberCount(int arrayOrObject) {
+    return DataTableInstanceGetInt(arrayOrObject, c_metatagCount);
+}
+
+static void SetMemberCount(int arrayOrObject, int count) {
+    DataTableInstanceSetInt(arrayOrObject, c_metatagCount, count);
+}
+
+void ST_InitLib() {
+    if (g_initialized) {
+        return;
+    }
+    DataTableInstanceCreate();
+    g_datatableFreelist = DataTableInstanceLastCreated();
+    DataTableInstanceSetInt(g_datatableFreelist, c_metatagCount, 0);
+
+    ST_SetDebugMode(!GameIsOnline());
+    SetupDispatchTable();
+
+    g_cachedTriggers = ST_Object_Create();
+    
+    g_initialized = true;
+}
+
+void ST_SetDebugMode(bool debug) {
+    g_debug = debug;
+    TriggerDebugOutputEnable(debug);
+}
+
+void ST_DebugPrint(string msg) {
+    if (!g_debug) { return; }
+    TriggerDebugOutput(1, StringToText("DebugPrint: " + msg), true);
+}
+
+void ST_DebugPrintText(text msg) {
+    if (!g_debug) { return; }
+    TriggerDebugOutput(1, StringToText("DebugPrint: ") + msg, true);
+}
+
+static void DebugPrintField(int dtype, int membervalues, string key, text indentation, text fieldname);
+
+static void DebugPrintArray(ST_Array array, text indentation) {
+    int i;
+    int type;
+    int count = ST_Array_Count(array);
+    ST_Ref ref;
+    for (i = 0; i < count; i += 1) {
+        ref = ST_Array_ByIndex(array, i);
+        DebugPrintField(
+            STR_GetValueType(ref), GetMemberValuesTable(array), IntToString(i), indentation,
+            StringToText("[") + IntToText(i) + StringToText("]")
+        );
+    }
+}
+
+static void DebugPrintObject(ST_Object object, text indentation) {
+    int i;
+    int type;
+    int count = ST_Object_Count(object);
+    ST_Ref ref;
+    for (i = 0; i < count; i += 1) {
+        ref = ST_Object_ByIndex(object, i);
+        DebugPrintField(
+            STR_GetValueType(ref), GetMemberValuesTable(object), STR_MemberNameFromParentObject(ref), indentation,
+            StringToText("." + STR_MemberNameFromParentObject(ref))
+        );
+    }
+}
+
+static void DebugPrintField(int dtype, int membervalues, string key, text indentation, text fieldname) {
+    text header = indentation + fieldname + StringToText(": ");
+    int type;
+    ST_Array array;
+    ST_Object object;
+    text strvalue;
+    string strtype;
+    if (dtype == c_dtypeArray) {
+        array = DataTableInstanceGetInt(membervalues, key);
+        TriggerDebugOutput(
+            1,
+            header + StringToText("Array ") + IntToText(array)
+            + StringToText(" (length ") + IntToText(ST_Array_Count(array)) + StringToText(")"),
+            true
+        );
+        DebugPrintArray(array, indentation + StringToText("    "));
+    }
+    else if (dtype == c_dtypeObject) {
+        object = DataTableInstanceGetInt(membervalues, key);
+        TriggerDebugOutput(
+            1,
+            header + StringToText("Object ") + IntToText(object)
+            + StringToText(" (") + IntToText(ST_Object_Count(object)) + StringToText(" members)"),
+            true
+        );
+        DebugPrintObject(object, indentation + StringToText("    "));
+    }
+    else {
+        type = DataTableInstanceValueType(membervalues, key);
+        if (type == c_dataTypeBool) {
+            strtype = "bool";
+            strvalue = libNtve_gf_ConvertBooleanToText(DataTableInstanceGetBool(membervalues, key));
+        }
+        else if (type == c_dataTypeInt) {
+            strtype = "int";
+            strvalue = IntToText(DataTableInstanceGetInt(membervalues, key));
+        }
+        else if (type == c_dataTypeFixed) {
+            strtype = "fixed";
+            strvalue = FixedToText(DataTableInstanceGetFixed(membervalues, key), 8);
+        }
+        else if (type == c_dataTypeString) {
+            strtype = "string";
+            strvalue = StringToText("\"") + StringToText(DataTableInstanceGetString(membervalues, key)) + StringToText("\"");
+        }
+        else if (type == c_dataTypeText) {
+            strtype = "text";
+            strvalue = StringToText("\"") + DataTableInstanceGetText(membervalues, key) + StringToText("\"");
+        }
+        else if (type == c_dataTypeTrigger) {
+            strtype = "trigger";
+            strvalue = StringToText(TriggerGetFunction(DataTableInstanceGetTrigger(membervalues, key)));
+        }
+        TriggerDebugOutput(
+            1,
+            header + StringToText(strtype) + StringToText(" = ") + strvalue,
+            true
+        );
+    }
+}
+
+void ST_DebugPrintArrayOrObject(int arrayOrObject) {
+    int type = TypeOfAO(arrayOrObject);
+    if (type == c_dtypeArray) {
+        TriggerDebugOutput(
+            1,
+            StringToText("Array ") + IntToText(arrayOrObject)
+            + StringToText(" (length ") + IntToText(ST_Array_Count(arrayOrObject)) + StringToText(")"),
+            true
+        );
+        DebugPrintArray(arrayOrObject, StringToText("    "));
+    }
+    else {
+        TriggerDebugOutput(
+            1,
+            StringToText("Object ") + IntToText(arrayOrObject)
+            + StringToText(" (") + IntToText(ST_Object_Count(arrayOrObject)) + StringToText(" members)"),
+            true
+        );
+        DebugPrintObject(arrayOrObject, StringToText("    "));
+    }
+}
+
+void ST_Assert(bool pred, string msg) {
+    int b1;
+    int b2;
+
+    if (!g_debug) { return; }
+
+    if (!pred) {
+        ST_DebugPrint("Assertion failure: " + msg);
+        TriggerStop(TriggerGetCurrent());
+        b1 = 0;
+        b2 = 1 / b1;
+    }
+}
+
+int ST_StringFind(string str, string target) {
+    int result = StringFind(str, target, true);
+    if (result < 0) {
+        return -1;
+    }
+    else {
+        return result - 1;
+    }
+}
+
+string ST_StringSub(string str, int start, int end) {
+    int length = StringLength(str);
+    if (start < 0) {
+        start = length + start;
+        if (start < 0) {
+            start = 0;
+        }
+    }
+    if (end < 0) {
+        end = length + end;
+        if (end < 0) {
+            end = 0;
+        }
+    }
+    return StringSub(str, start + 1, end);
+}
+
+ST_Array ST_StringSplit(string str, string sep) {
+    int index;
+    int seplen = StringLength(sep);
+    ST_Array ret;
+    ST_Ref backinserter;
+    ST_Assert(seplen != 0, "ST_StringSplit(): cannot split with empty separator");
+
+    ret = ST_Array_Create();
+    backinserter = ST_Array_BackInserter(ret);
+
+    while (true) {
+        index = ST_StringFind(str, sep);
+        if (index == -1) {
+            break;
+        }
+
+        STSetString(backinserter, ST_StringSub(str, 0, index));
+        str = ST_StringSub(str, index + seplen, StringLength(str));
+    }
+    // Remainders
+    STSetString(backinserter, str);
+
+    return ret;
+}
+
+ST_TextExpression ST_TextExpression_CreateFromTextID(string textId) {
+    ST_TextExpression ret;
+    g_textExpressionId += 1;
+    ret = "ST_TextExpression_" + IntToString(g_textExpressionId);
+
+    TextExpressionSetToken(ret, c_textExpressionTokenMain, StringExternal(textId));
+    return ret;
+}
+
+ST_TextExpression ST_TextExpression_CreateFromRawText(text rawText) {
+    ST_TextExpression ret;
+    g_textExpressionId += 1;
+    ret = "ST_TextExpression_" + IntToString(g_textExpressionId);
+
+    TextExpressionSetToken(ret, c_textExpressionTokenMain, rawText);
+    return ret;
+}
+
+void ST_TextExpression_SetToken(ST_TextExpression textExpression, string token, text value) {
+    TextExpressionSetToken(textExpression, token, value);
+}
+
+text ST_TextExpression_Result(ST_TextExpression textExpression) {
+    return TextExpressionAssemble(textExpression);
+}
+
+void ST_TextExpression_Destroy(ST_TextExpression textExpression) {}
+
+text ST_TextExpressionShortcut(string textId, string token, text value) {
+    text ret;
+    ST_TextExpression exp = ST_TextExpression_CreateFromTextID(textId);
+    ST_TextExpression_SetToken(exp, token, value);
+    ret = ST_TextExpression_Result(exp);
+    ST_TextExpression_Destroy(exp);
+    return ret;
+}
+
+trigger ST_TriggerGlobalCreate(string func) {
+    ST_Ref ref = ST_Object_Query(g_cachedTriggers, func);
+    trigger t;
+    if (STR_Exists(ref)) {
+        return STGetTrigger(ref);
+    }
+    else {
+        t = TriggerCreate(func);
+        STSetTrigger(ref, t);
+        return t;
+    }
+}
+
+int ST_DataTableInstanceCreate() {
+    int count = DataTableInstanceGetInt(g_datatableFreelist, c_metatagCount);
+    string key;
+    int ret;
+
+    if (count == 0) {
+        // Allocate new one and return it
+        DataTableInstanceCreate();
+        return DataTableInstanceLastCreated();
+    }
+    key = IntToString(count - 1);
+    ret = DataTableInstanceGetInt(g_datatableFreelist, key);
+    DataTableInstanceSetInt(g_datatableFreelist, c_metatagCount, count - 1);
+    return ret;
+}
+
+void ST_DataTableInstanceDestroy(int datatable) {
+    int count = DataTableInstanceGetInt(g_datatableFreelist, c_metatagCount);
+    DataTableInstanceSetInt(g_datatableFreelist, c_metatagCount, count + 1);
+    DataTableInstanceSetInt(g_datatableFreelist, IntToString(count), datatable);
+    DataTableInstanceClear(datatable);
+}
+
+void ST_DataTableInstanceCopy(int lhs, int rhs) {
+    DataTableInstanceClear(lhs);
+    DataTableInstanceCopy(lhs, rhs, "");
+}
+
+void ST_DataTableInstanceCopySingleValue(int dstDatatable, string keyDst, int srcDatatable, string keySrc) {
+    int type;
+
+    ST_Assert(
+        DataTableInstanceValueExists(srcDatatable, keySrc),
+        "ST_DataTableInstanceCopySingleValue(): key does not exist"
+    );
+
+    type = DataTableInstanceValueType(srcDatatable, keySrc);
+
+    if (type == c_dataTypeBool) { DataTableInstanceSetBool(dstDatatable, keyDst, DataTableInstanceGetBool(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeInt) { DataTableInstanceSetInt(dstDatatable, keyDst, DataTableInstanceGetInt(srcDatatable, keySrc)); }
+    else if (type == c_dataTypePoint) { DataTableInstanceSetPoint(dstDatatable, keyDst, DataTableInstanceGetPoint(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeFixed) { DataTableInstanceSetFixed(dstDatatable, keyDst, DataTableInstanceGetFixed(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeString) { DataTableInstanceSetString(dstDatatable, keyDst, DataTableInstanceGetString(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeText) { DataTableInstanceSetText(dstDatatable, keyDst, DataTableInstanceGetText(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeAbilCmd) { DataTableInstanceSetAbilCmd(dstDatatable, keyDst, DataTableInstanceGetAbilCmd(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeActor) { DataTableInstanceSetActor(dstDatatable, keyDst, DataTableInstanceGetActor(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeActorScope) { DataTableInstanceSetActorScope(dstDatatable, keyDst, DataTableInstanceGetActorScope(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeAIFilter) { DataTableInstanceSetAIFilter(dstDatatable, keyDst, DataTableInstanceGetAIFilter(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeBank) { DataTableInstanceSetBank(dstDatatable, keyDst, DataTableInstanceGetBank(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeByte) { DataTableInstanceSetByte(dstDatatable, keyDst, DataTableInstanceGetByte(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeCameraInfo) { DataTableInstanceSetCameraInfo(dstDatatable, keyDst, DataTableInstanceGetCameraInfo(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeCinematic) { DataTableInstanceSetCinematic(dstDatatable, keyDst, DataTableInstanceGetCinematic(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeColor) { DataTableInstanceSetColor(dstDatatable, keyDst, DataTableInstanceGetColor(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeControl) { DataTableInstanceSetControl(dstDatatable, keyDst, DataTableInstanceGetControl(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeConversation) { DataTableInstanceSetConversation(dstDatatable, keyDst, DataTableInstanceGetConversation(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeDialog) { DataTableInstanceSetDialog(dstDatatable, keyDst, DataTableInstanceGetDialog(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeDoodad) { DataTableInstanceSetDoodad(dstDatatable, keyDst, DataTableInstanceGetDoodad(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeMarker) { DataTableInstanceSetMarker(dstDatatable, keyDst, DataTableInstanceGetMarker(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeObjective) { DataTableInstanceSetObjective(dstDatatable, keyDst, DataTableInstanceGetObjective(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeOrder) { DataTableInstanceSetOrder(dstDatatable, keyDst, DataTableInstanceGetOrder(srcDatatable, keySrc)); }
+    else if (type == c_dataTypePing) { DataTableInstanceSetPing(dstDatatable, keyDst, DataTableInstanceGetPing(srcDatatable, keySrc)); }
+    else if (type == c_dataTypePlanet) { DataTableInstanceSetPlanet(dstDatatable, keyDst, DataTableInstanceGetPlanet(srcDatatable, keySrc)); }
+    else if (type == c_dataTypePlayerGroup) { DataTableInstanceSetPlayerGroup(dstDatatable, keyDst, DataTableInstanceGetPlayerGroup(srcDatatable, keySrc)); }
+    else if (type == c_dataTypePortrait) { DataTableInstanceSetPortrait(dstDatatable, keyDst, DataTableInstanceGetPortrait(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeRegion) { DataTableInstanceSetRegion(dstDatatable, keyDst, DataTableInstanceGetRegion(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeReply) { DataTableInstanceSetReply(dstDatatable, keyDst, DataTableInstanceGetReply(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeRevealer) { DataTableInstanceSetRevealer(dstDatatable, keyDst, DataTableInstanceGetRevealer(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeSound) { DataTableInstanceSetSound(dstDatatable, keyDst, DataTableInstanceGetSound(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeSoundLink) { DataTableInstanceSetSoundLink(dstDatatable, keyDst, DataTableInstanceGetSoundLink(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeTimer) { DataTableInstanceSetTimer(dstDatatable, keyDst, DataTableInstanceGetTimer(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeTransmission) { DataTableInstanceSetTransmission(dstDatatable, keyDst, DataTableInstanceGetTransmission(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeTransmissionSource) { DataTableInstanceSetTransmissionSource(dstDatatable, keyDst, DataTableInstanceGetTransmissionSource(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeTrigger) { DataTableInstanceSetTrigger(dstDatatable, keyDst, DataTableInstanceGetTrigger(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeUnit) { DataTableInstanceSetUnit(dstDatatable, keyDst, DataTableInstanceGetUnit(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeUnitFilter) { DataTableInstanceSetUnitFilter(dstDatatable, keyDst, DataTableInstanceGetUnitFilter(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeUnitGroup) { DataTableInstanceSetUnitGroup(dstDatatable, keyDst, DataTableInstanceGetUnitGroup(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeUnitRef) { DataTableInstanceSetUnitRef(dstDatatable, keyDst, DataTableInstanceGetUnitRef(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeWave) { DataTableInstanceSetWave(dstDatatable, keyDst, DataTableInstanceGetWave(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeWaveInfo) { DataTableInstanceSetWaveInfo(dstDatatable, keyDst, DataTableInstanceGetWaveInfo(srcDatatable, keySrc)); }
+    else if (type == c_dataTypeWaveTarget) { DataTableInstanceSetWaveTarget(dstDatatable, keyDst, DataTableInstanceGetWaveTarget(srcDatatable, keySrc)); }
+    // else if (type == c_dataTypeDataTableInstance) {}
+    // else if (type == c_dataTypeGenericHandle) {}
+    else {
+        ST_Assert(false, "ST_DataTableInstanceCopySingleValue(): unknown type");
+    }
+}
+
+bool ST_DataTableInstanceEqual(int lhs, int rhs) {
+    int i;
+    string key;
+    int type;
+    int count = DataTableInstanceValueCount(lhs);
+    if (count != DataTableInstanceValueCount(rhs)) {
+        return false;
+    }
+    for (i = 1; i <= count; i += 1) {
+        key = DataTableInstanceValueName(lhs, i);
+        if (!DataTableInstanceValueExists(rhs, key)) {
+            return false;
+        }
+        type = DataTableInstanceValueType(lhs, key);
+        if (type != DataTableInstanceValueType(rhs, key)) {
+            return false;
+        }
+
+        if (type == c_dataTypeBool) { if (DataTableInstanceGetBool(lhs, key) != DataTableInstanceGetBool(rhs, key)) { return false; } }
+        else if (type == c_dataTypeInt) { if (DataTableInstanceGetInt(lhs, key) != DataTableInstanceGetInt(rhs, key)) { return false; } }
+        else if (type == c_dataTypePoint) { if (DataTableInstanceGetPoint(lhs, key) != DataTableInstanceGetPoint(rhs, key)) { return false; } }
+        else if (type == c_dataTypeFixed) { if (DataTableInstanceGetFixed(lhs, key) != DataTableInstanceGetFixed(rhs, key)) { return false; } }
+        else if (type == c_dataTypeString) { if (DataTableInstanceGetString(lhs, key) != DataTableInstanceGetString(rhs, key)) { return false; } }
+        else if (type == c_dataTypeText) { if (DataTableInstanceGetText(lhs, key) != DataTableInstanceGetText(rhs, key)) { return false; } }
+        else if (type == c_dataTypeAbilCmd) { if (DataTableInstanceGetAbilCmd(lhs, key) != DataTableInstanceGetAbilCmd(rhs, key)) { return false; } }
+        else if (type == c_dataTypeActor) { if (DataTableInstanceGetActor(lhs, key) != DataTableInstanceGetActor(rhs, key)) { return false; } }
+        else if (type == c_dataTypeActorScope) { if (DataTableInstanceGetActorScope(lhs, key) != DataTableInstanceGetActorScope(rhs, key)) { return false; } }
+        else if (type == c_dataTypeAIFilter) { if (DataTableInstanceGetAIFilter(lhs, key) != DataTableInstanceGetAIFilter(rhs, key)) { return false; } }
+        else if (type == c_dataTypeBank) { if (DataTableInstanceGetBank(lhs, key) != DataTableInstanceGetBank(rhs, key)) { return false; } }
+        else if (type == c_dataTypeByte) { if (DataTableInstanceGetByte(lhs, key) != DataTableInstanceGetByte(rhs, key)) { return false; } }
+        else if (type == c_dataTypeCameraInfo) { if (DataTableInstanceGetCameraInfo(lhs, key) != DataTableInstanceGetCameraInfo(rhs, key)) { return false; } }
+        else if (type == c_dataTypeCinematic) { if (DataTableInstanceGetCinematic(lhs, key) != DataTableInstanceGetCinematic(rhs, key)) { return false; } }
+        else if (type == c_dataTypeColor) { if (DataTableInstanceGetColor(lhs, key) != DataTableInstanceGetColor(rhs, key)) { return false; } }
+        else if (type == c_dataTypeControl) { if (DataTableInstanceGetControl(lhs, key) != DataTableInstanceGetControl(rhs, key)) { return false; } }
+        else if (type == c_dataTypeConversation) { if (DataTableInstanceGetConversation(lhs, key) != DataTableInstanceGetConversation(rhs, key)) { return false; } }
+        else if (type == c_dataTypeDialog) { if (DataTableInstanceGetDialog(lhs, key) != DataTableInstanceGetDialog(rhs, key)) { return false; } }
+        else if (type == c_dataTypeDoodad) { if (DataTableInstanceGetDoodad(lhs, key) != DataTableInstanceGetDoodad(rhs, key)) { return false; } }
+        else if (type == c_dataTypeMarker) { if (DataTableInstanceGetMarker(lhs, key) != DataTableInstanceGetMarker(rhs, key)) { return false; } }
+        else if (type == c_dataTypeObjective) { if (DataTableInstanceGetObjective(lhs, key) != DataTableInstanceGetObjective(rhs, key)) { return false; } }
+        else if (type == c_dataTypeOrder) { if (DataTableInstanceGetOrder(lhs, key) != DataTableInstanceGetOrder(rhs, key)) { return false; } }
+        else if (type == c_dataTypePing) { if (DataTableInstanceGetPing(lhs, key) != DataTableInstanceGetPing(rhs, key)) { return false; } }
+        else if (type == c_dataTypePlanet) { if (DataTableInstanceGetPlanet(lhs, key) != DataTableInstanceGetPlanet(rhs, key)) { return false; } }
+        else if (type == c_dataTypePlayerGroup) { if (DataTableInstanceGetPlayerGroup(lhs, key) != DataTableInstanceGetPlayerGroup(rhs, key)) { return false; } }
+        else if (type == c_dataTypePortrait) { if (DataTableInstanceGetPortrait(lhs, key) != DataTableInstanceGetPortrait(rhs, key)) { return false; } }
+        else if (type == c_dataTypeRegion) { if (DataTableInstanceGetRegion(lhs, key) != DataTableInstanceGetRegion(rhs, key)) { return false; } }
+        else if (type == c_dataTypeReply) { if (DataTableInstanceGetReply(lhs, key) != DataTableInstanceGetReply(rhs, key)) { return false; } }
+        else if (type == c_dataTypeRevealer) { if (DataTableInstanceGetRevealer(lhs, key) != DataTableInstanceGetRevealer(rhs, key)) { return false; } }
+        else if (type == c_dataTypeSound) { if (DataTableInstanceGetSound(lhs, key) != DataTableInstanceGetSound(rhs, key)) { return false; } }
+        else if (type == c_dataTypeSoundLink) { if (DataTableInstanceGetSoundLink(lhs, key) != DataTableInstanceGetSoundLink(rhs, key)) { return false; } }
+        else if (type == c_dataTypeTimer) { if (DataTableInstanceGetTimer(lhs, key) != DataTableInstanceGetTimer(rhs, key)) { return false; } }
+        else if (type == c_dataTypeTransmission) { if (DataTableInstanceGetTransmission(lhs, key) != DataTableInstanceGetTransmission(rhs, key)) { return false; } }
+        else if (type == c_dataTypeTransmissionSource) { if (DataTableInstanceGetTransmissionSource(lhs, key) != DataTableInstanceGetTransmissionSource(rhs, key)) { return false; } }
+        else if (type == c_dataTypeTrigger) { if (DataTableInstanceGetTrigger(lhs, key) != DataTableInstanceGetTrigger(rhs, key)) { return false; } }
+        else if (type == c_dataTypeUnit) { if (DataTableInstanceGetUnit(lhs, key) != DataTableInstanceGetUnit(rhs, key)) { return false; } }
+        else if (type == c_dataTypeUnitFilter) { if (DataTableInstanceGetUnitFilter(lhs, key) != DataTableInstanceGetUnitFilter(rhs, key)) { return false; } }
+        else if (type == c_dataTypeUnitGroup) { if (DataTableInstanceGetUnitGroup(lhs, key) != DataTableInstanceGetUnitGroup(rhs, key)) { return false; } }
+        else if (type == c_dataTypeUnitRef) { if (DataTableInstanceGetUnitRef(lhs, key) != DataTableInstanceGetUnitRef(rhs, key)) { return false; } }
+        else if (type == c_dataTypeWave) { if (DataTableInstanceGetWave(lhs, key) != DataTableInstanceGetWave(rhs, key)) { return false; } }
+        else if (type == c_dataTypeWaveInfo) { if (DataTableInstanceGetWaveInfo(lhs, key) != DataTableInstanceGetWaveInfo(rhs, key)) { return false; } }
+        else if (type == c_dataTypeWaveTarget) { if (DataTableInstanceGetWaveTarget(lhs, key) != DataTableInstanceGetWaveTarget(rhs, key)) { return false; } }
+        // else if (type == c_dataTypeDataTableInstance) {}
+        // else if (type == c_dataTypeGenericHandle) {}
+        else {
+            ST_Assert(false, "ST_DataTableInstanceEqual(): unknown type");
+        }
+    }
+    return true;
+}
+
+int ST_FindStringFromStringArray(ST_Array array, string value) {
+    int count = ST_Array_Count(array);
+    int i;
+    for (i = 0; i < count; i += 1) {
+        if (STGetString(ST_Array_ByIndex(array, i)) == value) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static bool StringArrayMultisetEquivalencyDestructiveRhs(ST_Array lhs, ST_Array rhs) {
+    int i;
+    int count;
+    string value;
+    int rhsIndex;
+
+    count = ST_Array_Count(lhs);
+    if (count != ST_Array_Count(rhs)) { return false; }
+
+    for (i = 0; i < count; i += 1) {
+        value = STGetString(ST_Array_ByIndex(lhs, i));
+        rhsIndex = ST_FindStringFromStringArray(rhs, value);
+        if (rhsIndex == -1) { return false; }
+        ST_Array_DeleteRange(rhs, rhsIndex, rhsIndex + 1);
+    }
+
+    return true;
+}
+
+bool ST_StringArrayMultisetEquivalency(ST_Array lhs, ST_Array rhs) {
+    bool result;
+    ST_Array rhsnew = ST_Array_Create();
+    ST_Array_Copy(rhsnew, rhs, false);
+
+    result = StringArrayMultisetEquivalencyDestructiveRhs(lhs, rhsnew);
+
+    ST_Array_Destroy(rhsnew, false);
+    
+    return result;
+}
+
+ST_Array ST_Array_Create() {
+    ST_Array array = ST_DataTableInstanceCreate();
+    DataTableInstanceSetInt(array, c_metatagType, c_dtypeArray);
+    DataTableInstanceSetInt(array, c_metatagCount, 0);
+    DataTableInstanceSetInt(array, c_metatagMemberTypes, ST_DataTableInstanceCreate());
+    DataTableInstanceSetInt(array, c_metatagMemberValues, ST_DataTableInstanceCreate());
+    return array;
+}
+
+static void ArrayDeepDestroyValuesOnly(ST_Array array) {
+    int count = ST_Array_Count(array);
+    int i;
+    int type;
+    ST_Ref ref;
+    for (i = 0; i < count; i += 1) {
+        ref = ST_Array_ByIndex(array, i);
+        type = STR_GetValueType(ref);
+        if (type == c_dtypeArray) {
+            ST_Array_Destroy(STGetArray(ref), true);
+        }
+        else if (type == c_dtypeObject) {
+            ST_Object_Destroy(STGetObject(ref), true);
+        }
+    }
+}
+
+void ST_Array_Destroy(ST_Array array, bool deep) {
+    trigger destructor;
+    if (DataTableInstanceValueExists(array, c_metatagDestructor)) {
+        destructor = DataTableInstanceGetTrigger(array, c_metatagDestructor);
+        g_eventArray = array;
+        TriggerExecute(destructor, false, true);
+        g_eventArray = 0;
+    }
+    if (deep) {
+        ArrayDeepDestroyValuesOnly(array);
+    }
+    ST_DataTableInstanceDestroy(GetMemberTypesTable(array));
+    ST_DataTableInstanceDestroy(GetMemberValuesTable(array));
+    ST_DataTableInstanceDestroy(array);
+}
+
+void ST_Array_Copy(ST_Array lhs, ST_Array rhs, bool deep) {
+    int membertypeslhs;
+    int membervalueslhs;
+    int membertypesrhs;
+    int membervaluesrhs;
+    int count;
+    int i;
+    int type;
+    string key;
+    ST_Array newArray;
+    ST_Object newObject;
+
+    if (lhs == rhs) { return; }
+
+    if (deep) {
+        membertypeslhs = GetMemberTypesTable(lhs);
+        membervalueslhs = GetMemberValuesTable(lhs);
+        membertypesrhs = GetMemberTypesTable(rhs);
+        membervaluesrhs = GetMemberValuesTable(rhs);
+        count = ST_Array_Count(rhs);
+    
+        ArrayDeepDestroyValuesOnly(lhs);
+        DataTableInstanceClear(membertypeslhs);
+        DataTableInstanceClear(membervalueslhs);
+        for (i = 0; i < count; i += 1) {
+            key = IntToString(i);
+            type = GetMemberType(membertypesrhs, key);
+            DataTableInstanceSetInt(membertypeslhs, key, type);
+            if (type == c_dtypeArray) {
+                newArray = ST_Array_Create();
+                ST_Array_Copy(newArray, DataTableInstanceGetInt(membervaluesrhs, key), true);
+                DataTableInstanceSetInt(membervalueslhs, key, newArray);
+            }
+            else if (type == c_dtypeObject) {
+                newObject = ST_Object_Create();
+                ST_Object_Copy(newObject, DataTableInstanceGetInt(membervaluesrhs, key), true);
+                DataTableInstanceSetInt(membervalueslhs, key, newObject);
+            }
+            else {
+                ST_DataTableInstanceCopySingleValue(membervalueslhs, key, membervaluesrhs, key);
+            }
+        }
+    
+        SetMemberCount(lhs, count);
+    }
+    else {
+        ST_DataTableInstanceCopy(GetMemberTypesTable(lhs), GetMemberTypesTable(rhs));
+        ST_DataTableInstanceCopy(GetMemberValuesTable(lhs), GetMemberValuesTable(rhs));
+        ST_DataTableInstanceCopySingleValue(lhs, c_metatagCount, rhs, c_metatagCount);
+    }
+}
+
+void ST_Array_Clear(ST_Array array, bool deep) {
+    if (deep) {
+        ArrayDeepDestroyValuesOnly(array);
+    }
+    DataTableInstanceClear(GetMemberTypesTable(array));
+    DataTableInstanceClear(GetMemberValuesTable(array));
+    SetMemberCount(array, 0);
+}
+
+bool ST_Array_Equal(ST_Array lhs, ST_Array rhs) {
+    int i;
+    int count = ST_Array_Count(lhs);
+    ST_Ref refLhs;
+    ST_Ref refRhs;
+    int type;
+    int rawType;
+
+    if (count != ST_Array_Count(rhs)) {
+        return false;
+    }
+    for (i = 0; i < count; i += 1) {
+        refLhs = ST_Array_ByIndex(lhs, i);
+        refRhs = ST_Array_ByIndex(rhs, i);
+        type = STR_GetValueType(refLhs);
+        rawType = STR_GetRawValueType(refLhs);
+        if ((type != STR_GetValueType(refRhs)) || (rawType != STR_GetRawValueType(refRhs))){
+            return false;
+        }
+        if (type == c_dtypeArray) {
+            if (!ST_Array_Equal(STGetArray(refLhs), STGetArray(refRhs))) { return false; }
+        } 
+        else if (type == c_dtypeObject) {
+            if (!ST_Object_Equal(STGetObject(refLhs), STGetObject(refRhs))) { return false; }
+        }
+        else if (type == c_dtypeRaw) {
+            if (rawType == c_dataTypeBool) { if (STGetBool(refLhs) != STGetBool(refRhs)) { return false; } }
+            if (rawType == c_dataTypeInt) { if (STGetInt(refLhs) != STGetInt(refRhs)) { return false; } }
+            if (rawType == c_dataTypeFixed) { if (STGetFixed(refLhs) != STGetFixed(refRhs)) { return false; } }
+            if (rawType == c_dataTypeString) { if (STGetString(refLhs) != STGetString(refRhs)) { return false; } }
+            if (rawType == c_dataTypeText) { if (STGetText(refLhs) != STGetText(refRhs)) { return false; } }
+            if (rawType == c_dataTypeTrigger) { if (STGetTrigger(refLhs) != STGetTrigger(refRhs)) { return false; } }
+        }
+    }
+    return true;
+}
+
+void ST_Array_SetDestructor(ST_Array array, trigger destructor) {
+    DataTableInstanceSetTrigger(array, c_metatagDestructor, destructor);
+}
+
+ST_Array ST_EventArray() {
+    return g_eventArray;
+}
+
+ST_Ref ST_Array_ByIndex(ST_Array array, int index) {
+    int count = GetMemberCount(array);
+    if (index < 0) {
+        index += count;
+    }
+    ST_Assert((index >= 0) && (index < GetMemberCount(array)), "ST_Array_ByIndex(): index out of range");
+
+    return "a" + IntToString(index) + "|v" + IntToString(array);
+}
+
+ST_Ref ST_Array_BackInserter(ST_Array array) {
+    return "A|v" + IntToString(array);
+}
+
+bool ST_Array_DeleteRange(ST_Array array, int begin, int end) {
+    int count = GetMemberCount(array);
+    int membertypes = GetMemberTypesTable(array);
+    int membervalues = GetMemberValuesTable(array);
+    int newCount;
+    if (begin < 0) { begin += count; }
+    if (end < 0) { end += count; }
+    begin = libNtve_gf_ArithmeticIntClamp(begin, 0, count);
+    end = libNtve_gf_ArithmeticIntClamp(end, begin, count);
+
+    newCount = count - (end - begin);
+    while (begin < newCount) {
+        ST_DataTableInstanceCopySingleValue(membertypes, IntToString(begin), membertypes, IntToString(end));
+        ST_DataTableInstanceCopySingleValue(membervalues, IntToString(begin), membervalues, IntToString(end));
+        begin += 1;
+        end += 1;
+    }
+    SetMemberCount(array, newCount);
+    return count != newCount;
+}
+
+int ST_Array_Count(ST_Array array) {
+    return GetMemberCount(array);
+}
+
+ST_Object ST_Object_Create() {
+    ST_Object object = ST_DataTableInstanceCreate();
+    DataTableInstanceSetInt(object, c_metatagType, c_dtypeObject);
+    DataTableInstanceSetInt(object, c_metatagCount, 0);
+    DataTableInstanceSetInt(object, c_metatagMemberTypes, ST_DataTableInstanceCreate());
+    DataTableInstanceSetInt(object, c_metatagMemberValues, ST_DataTableInstanceCreate());
+    return object;
+}
+
+void ObjectDeepDestroyValuesOnly(ST_Object object) {
+    int count = ST_Object_Count(object);
+    int i;
+    int type;
+    ST_Ref ref;
+    for (i = 0; i < count; i += 1) {
+        ref = ST_Object_ByIndex(object, i);
+        type = STR_GetValueType(ref);
+        if (type == c_dtypeArray) {
+            ST_Array_Destroy(STGetArray(ref), true);
+        }
+        else if (type == c_dtypeObject) {
+            ST_Object_Destroy(STGetObject(ref), true);
+        }
+    }
+}
+
+void ST_Object_Destroy(ST_Object object, bool deep) {
+    trigger destructor;
+    if (DataTableInstanceValueExists(object, c_metatagDestructor)) {
+        destructor = DataTableInstanceGetTrigger(object, c_metatagDestructor);
+        g_eventObject = object;
+        TriggerExecute(destructor, false, true);
+        g_eventObject = 0;
+    }
+    if (deep) {
+        ObjectDeepDestroyValuesOnly(object);
+    }
+    ST_DataTableInstanceDestroy(GetMemberTypesTable(object));
+    ST_DataTableInstanceDestroy(GetMemberValuesTable(object));
+    ST_DataTableInstanceDestroy(object);
+}
+
+void ST_Object_Copy(ST_Object lhs, ST_Object rhs, bool deep) {
+    int membertypeslhs;
+    int membervalueslhs;
+    int membertypesrhs;
+    int membervaluesrhs;
+    int count;
+    int i;
+    int type;
+    string key;
+    ST_Array newArray;
+    ST_Object newObject;
+
+    if (lhs == rhs) { return; }
+    
+    if (deep) {
+        membertypeslhs = GetMemberTypesTable(lhs);
+        membervalueslhs = GetMemberValuesTable(lhs);
+        membertypesrhs = GetMemberTypesTable(rhs);
+        membervaluesrhs = GetMemberValuesTable(rhs);
+        count = DataTableInstanceValueCount(membertypesrhs);
+    
+        ObjectDeepDestroyValuesOnly(lhs);
+        DataTableInstanceClear(membertypeslhs);
+        DataTableInstanceClear(membervalueslhs);
+        for (i = 1; i <= count; i += 1) {
+            key = DataTableInstanceValueName(membertypesrhs, i);
+            type = GetMemberType(membertypesrhs, key);
+            if (type == c_dtypeNonexistent) {
+                continue;
+            }
+            else {
+                DataTableInstanceSetInt(membertypeslhs, key, type);
+                if (type == c_dtypeArray) {
+                    newArray = ST_Array_Create();
+                    ST_Array_Copy(newArray, DataTableInstanceGetInt(membervaluesrhs, key), true);
+                    DataTableInstanceSetInt(membervalueslhs, key, newArray);
+                }
+                else if (type == c_dtypeObject) {
+                    newObject = ST_Object_Create();
+                    ST_Object_Copy(newObject, DataTableInstanceGetInt(membervaluesrhs, key), true);
+                    DataTableInstanceSetInt(membervalueslhs, key, newObject);
+                }
+                else {
+                    ST_DataTableInstanceCopySingleValue(membervalueslhs, key, membervaluesrhs, key);
+                }
+            } 
+        }
+    }
+    else {
+        ST_DataTableInstanceCopy(GetMemberTypesTable(lhs), GetMemberTypesTable(rhs));
+        ST_DataTableInstanceCopy(GetMemberValuesTable(lhs), GetMemberValuesTable(rhs));
+    }
+    ST_DataTableInstanceCopySingleValue(lhs, c_metatagCount, rhs, c_metatagCount);
+}
+
+void ST_Object_Clear(ST_Object object, bool deep) {
+    if (deep) {
+        ObjectDeepDestroyValuesOnly(object);
+    }
+    DataTableInstanceClear(GetMemberTypesTable(object));
+    DataTableInstanceClear(GetMemberValuesTable(object));
+    SetMemberCount(object, 0);
+}
+
+bool ST_Object_Equal(ST_Object lhs, ST_Object rhs) {
+    int i;
+    int count = ST_Object_Count(lhs);
+    ST_Ref refLhs;
+    ST_Ref refRhs;
+    int type;
+    int rawType;
+
+    if (count != ST_Object_Count(rhs)) {
+        return false;
+    }
+    for (i = 0; i < count; i += 1) {
+        refLhs = ST_Object_ByIndex(lhs, i);
+        refRhs = ST_Object_Query(rhs, STR_MemberNameFromParentObject(refLhs));
+        if (!STR_Exists(refRhs)) {
+            return false;
+        }
+
+        type = STR_GetValueType(refLhs);
+        rawType = STR_GetRawValueType(refLhs);
+        if ((type != STR_GetValueType(refRhs)) || (rawType != STR_GetRawValueType(refRhs))){
+            return false;
+        }
+        if (type == c_dtypeArray) {
+            if (!ST_Array_Equal(STGetArray(refLhs), STGetArray(refRhs))) { return false; }
+        } 
+        else if (type == c_dtypeObject) {
+            if (!ST_Object_Equal(STGetObject(refLhs), STGetObject(refRhs))) { return false; }
+        }
+        else if (type == c_dtypeRaw) {
+            if (rawType == c_dataTypeBool) { if (STGetBool(refLhs) != STGetBool(refRhs)) { return false; } }
+            if (rawType == c_dataTypeInt) { if (STGetInt(refLhs) != STGetInt(refRhs)) { return false; } }
+            if (rawType == c_dataTypeFixed) { if (STGetFixed(refLhs) != STGetFixed(refRhs)) { return false; } }
+            if (rawType == c_dataTypeString) { if (STGetString(refLhs) != STGetString(refRhs)) { return false; } }
+            if (rawType == c_dataTypeText) { if (STGetText(refLhs) != STGetText(refRhs)) { return false; } }
+            if (rawType == c_dataTypeTrigger) { if (STGetTrigger(refLhs) != STGetTrigger(refRhs)) { return false; } }
+        }
+    }
+    return true;
+}
+
+void ST_Object_SetDestructor(ST_Object object, trigger destructor) {
+    DataTableInstanceSetTrigger(object, c_metatagDestructor, destructor);
+}
+
+ST_Object ST_EventObject() {
+    return g_eventObject;
+}
+
+ST_Ref ST_Object_Query(ST_Object object, string member) {
+    int membertypes = GetMemberTypesTable(object);
+    if (GetMemberType(membertypes, member) != c_dtypeNonexistent) {
+        return "o" + member + "|V" + IntToString(object);
+    }
+    return "O" + member + "|V" + IntToString(object);
+}
+
+ST_Ref ST_Object_ByIndex(ST_Object object, int index) {
+    int count = GetMemberCount(object);
+    int membertypes = GetMemberTypesTable(object);
+    int i;
+    string key;
+    ST_Assert((index >= 0) && (index < GetMemberCount(object)), "ST_Object_ByIndex(): index out of range");
+
+    i = 1;
+    while(true) {
+        key = DataTableInstanceValueName(membertypes, i);
+        if (DataTableInstanceGetInt(membertypes, key) == c_dtypeNonexistent) {
+            i += 1;
+        }
+        else if (index == 0) {
+            return "o" + key + "|V" + IntToString(object);
+        }
+        else {
+            i += 1;
+            index -= 1;
+        }
+    }
+    // Unreachable
+    return "";
+}
+
+int ST_Object_Count(ST_Object object) {
+    return GetMemberCount(object);
+}
+
+static int GetParent(ST_Ref ref) {
+    int index = ST_StringFind(ref, "|");
+    return StringToInt(ST_StringSub(ref, index + 2, StringLength(ref)));
+}
+static string GetMemberString(ST_Ref ref) {
+    int index = ST_StringFind(ref, "|");
+    if (index == -1) { index = StringLength(ref); }
+    return ST_StringSub(ref, 1, index);
+}
+
+static ST_Ref STR_AO_Array(int arrayOrObject, string accessor) {
+    return STR_R("v" + IntToString(arrayOrObject), accessor);
+}
+
+static ST_Ref STR_AO_Object(int arrayOrObject, string accessor) {
+    return STR_R("V" + IntToString(arrayOrObject), accessor);
+}
+
+ST_Ref STR(int arrayOrObject, string accessor) {
+    return g_dispatchTableSTR_AO[TypeOfAO(arrayOrObject)](arrayOrObject, accessor);
+}
+
+ST_Ref STR_R(ST_Ref ref, string accessor) {
+    int accessorlen;
+    int stringindex;
+    int stringindex1;
+    int stringindex2;
+    int arraymember;
+    string objectmember;
+
+    accessorlen = StringLength(accessor);
+    while (accessorlen > 0) {
+        if (StringContains(accessor, "[*]", c_stringBegin, true)) {
+            // ArrayBackInserterRef
+            ref = ST_Array_BackInserter(STGetArray(ref));
+            accessor = ST_StringSub(accessor, 3, accessorlen);
+            accessorlen -= 3;
+        }
+        else if (StringContains(accessor, "[", c_stringBegin, true)) {
+            // ArrayMemberRef
+            stringindex = ST_StringFind(accessor, "]");
+            ST_Assert(stringindex != -1, "STR_R(): invalid syntax");
+            arraymember = StringToInt(ST_StringSub(accessor, 1, stringindex));
+
+            if (STR_GetValueType(ref) == c_dtypeArray) {
+                ref = ST_Array_ByIndex(STGetArray(ref), arraymember);
+            }
+            else {
+                ref = ST_Object_ByIndex(STGetObject(ref), arraymember);
+            }
+
+            accessor = ST_StringSub(accessor, stringindex + 1, accessorlen);
+            accessorlen -= stringindex + 1;
+        }
+        else if (StringContains(accessor, ".", c_stringBegin, true)) {
+            // ObjectMemberRef or ObjectInserterRef
+            accessor = ST_StringSub(accessor, 1, accessorlen);
+            accessorlen -= 1;
+
+            stringindex1 = ST_StringFind(accessor, ".");
+            stringindex2 = ST_StringFind(accessor, "[");
+            if (stringindex1 == -1) { stringindex1 = accessorlen; }
+            if (stringindex2 == -1) { stringindex2 = accessorlen; }
+            stringindex = MinI(stringindex1, stringindex2);
+
+            objectmember = ST_StringSub(accessor, 0, stringindex);
+            ref = ST_Object_Query(STGetObject(ref), objectmember);
+            accessor = ST_StringSub(accessor, stringindex, accessorlen);
+            accessorlen -= stringindex;
+        }
+        else {
+            ST_Assert(false, "STR_R(): invalid syntax");
+        }
+    }
+
+    return ref;
+}
+
+static bool STR_Exists_ArrayMemberRef(ST_Ref ref) { return true; }
+static bool STR_Exists_ArrayBackInserterRef(ST_Ref ref) { return false; }
+static bool STR_Exists_ObjectMemberRef(ST_Ref ref) { return true; }
+static bool STR_Exists_ObjectInserterRef(ST_Ref ref) { return false; }
+static bool STR_Exists_DirectArrayRef(ST_Ref ref) { return true; }
+static bool STR_Exists_DirectObjectRef(ST_Ref ref) { return true; }
+
+bool STR_Exists(ST_Ref ref) {
+    return g_dispatchTableSTR_Exists[TypeOfRef(ref)](ref);
+}
+
+static void STR_DeleteFromParent_ArrayMemberRef(ST_Ref ref) {
+    int index = STR_IndexFromParentArray(ref);
+    
+    if (!ST_Array_DeleteRange(GetParent(ref), index, index + 1)) {
+        ST_Assert(false, "STR_DeleteFromParent(): Invalid reference");
+    }
+}
+
+static void STR_DeleteFromParent_ObjectMemberRef(ST_Ref ref) {
+    ST_Object object = GetParent(ref);
+    int membertypes = GetMemberTypesTable(object);
+    string membername = STR_MemberNameFromParentObject(ref);
+    if (GetMemberType(membertypes, membername) == c_dtypeNonexistent) {
+        ST_Assert(false, "STR_DeleteFromParent(): Invalid reference");
+    }
+    else {
+        SetMemberType(membertypes, membername, c_dtypeNonexistent);
+        SetMemberCount(object, GetMemberCount(object) - 1);
+    }
+}
+
+void STR_DeleteFromParent(ST_Ref ref) {
+    g_dispatchTableSTR_DeleteFromParent[TypeOfRef(ref)](ref);
+}
+
+static int STR_IndexFromParentArray_ArrayMemberRef(ST_Ref ref) {
+    return StringToInt(GetMemberString(ref));
+}
+
+int STR_IndexFromParentArray(ST_Ref ref) {
+    return g_dispatchTableSTR_IndexFromParentArray[TypeOfRef(ref)](ref);
+}
+
+static string STR_MemberNameFromParentObject_ObjectMemberRef(ST_Ref ref) {
+    return GetMemberString(ref);
+}
+
+static string STR_MemberNameFromParentObject_ObjectInserterRef(ST_Ref ref) {
+    return GetMemberString(ref);
+}
+
+string STR_MemberNameFromParentObject(ST_Ref ref) {
+    return g_dispatchTableSTR_MemberNameFromParentObject[TypeOfRef(ref)](ref);
+}
+
+static int STR_GetValueType_MemberRefs(ST_Ref ref){
+    int parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int type = GetMemberType(GetMemberTypesTable(parent), membername);
+    ST_Assert(type != c_dtypeNonexistent, "STR_GetValueType(): invalid reference");
+    return type;
+}
+
+static int STR_GetValueType_DirectArrayRef(ST_Ref ref) {
+    return c_dtypeArray;
+}
+
+static int STR_GetValueType_DirectObjectRef(ST_Ref ref) {
+    return c_dtypeObject;
+}
+
+int STR_GetValueType(ST_Ref ref) {
+    return g_dispatchTableSTR_GetValueType[TypeOfRef(ref)](ref);
+}
+
+static int STR_GetRawValueType_MemberRefs(ST_Ref ref){
+    int parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int type = DataTableInstanceValueType(GetMemberValuesTable(parent), membername);
+    ST_Assert(type != c_dataTypeUnknown, "STR_GetRawValueType(): invalid reference");
+    return type;
+}
+
+static int STR_GetRawValueType_DirectArrayRef(ST_Ref ref) {
+    return c_dataTypeInt;
+}
+
+static int STR_GetRawValueType_DirectObjectRef(ST_Ref ref) {
+    return c_dataTypeInt;
+}
+
+int STR_GetRawValueType(ST_Ref ref) {
+    return g_dispatchTableSTR_GetRawValueType[TypeOfRef(ref)](ref);
+}
+
+
+static ST_Array STGetArray_MemberRefs(ST_Ref ref) {
+    int parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int type = GetMemberType(GetMemberTypesTable(parent), membername);
+    ST_Assert(type != c_dtypeNonexistent, "STGetArray(): invalid reference");
+    ST_Assert(type == c_dtypeArray, "STGetArray(): type mismatch");
+    return DataTableInstanceGetInt(GetMemberValuesTable(parent), membername);
+}
+
+static ST_Array STGetArray_DirectArrayRef(ST_Ref ref) {
+    return StringToInt(GetMemberString(ref));
+}
+
+ST_Array STGetArray(ST_Ref ref) {
+    return g_dispatchTableSTGetArray[TypeOfRef(ref)](ref);
+}
+
+static ST_Object STGetObject_MemberRefs(ST_Ref ref) {
+    int parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int type = GetMemberType(GetMemberTypesTable(parent), membername);
+    ST_Assert(type != c_dtypeNonexistent, "STGetObject(): invalid reference");
+    ST_Assert(type == c_dtypeObject, "STGetObject(): type mismatch");
+    return DataTableInstanceGetInt(GetMemberValuesTable(parent), membername);
+}
+
+static ST_Object STGetObject_DirectObjectRef(ST_Ref ref) {
+    return StringToInt(GetMemberString(ref));
+}
+
+ST_Object STGetObject(ST_Ref ref) {
+    return g_dispatchTableSTGetObject[TypeOfRef(ref)](ref);
+}
+
+static bool STGetBool_MemberRefs(ST_Ref ref) {
+    int parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int type = GetMemberType(GetMemberTypesTable(parent), membername);
+    int membervalues = GetMemberValuesTable(parent);
+    ST_Assert(type != c_dtypeNonexistent, "STGetBool(): invalid reference");
+    ST_Assert(
+        (type == c_dtypeRaw) && (DataTableInstanceValueType(membervalues, membername) == c_dataTypeBool),
+        "STGetBool(): type mismatch"
+    );
+    return DataTableInstanceGetBool(membervalues, membername);
+}
+bool STGetBool(ST_Ref ref) { return g_dispatchTableSTGetBool[TypeOfRef(ref)](ref); }
+
+static int STGetInt_MemberRefs(ST_Ref ref) {
+    int parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int type = GetMemberType(GetMemberTypesTable(parent), membername);
+    int membervalues = GetMemberValuesTable(parent);
+    ST_Assert(type != c_dtypeNonexistent, "STGetInt(): invalid reference");
+    ST_Assert(
+        !((type == c_dtypeRaw) && (DataTableInstanceValueType(membervalues, membername) != c_dataTypeInt)),
+        "STGetInt(): type mismatch"
+    );
+    return DataTableInstanceGetInt(membervalues, membername);
+}
+int STGetInt(ST_Ref ref) { return g_dispatchTableSTGetInt[TypeOfRef(ref)](ref); }
+
+static fixed STGetFixed_MemberRefs(ST_Ref ref) {
+    int parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int type = GetMemberType(GetMemberTypesTable(parent), membername);
+    int membervalues = GetMemberValuesTable(parent);
+    ST_Assert(type != c_dtypeNonexistent, "STGetFixed(): invalid reference");
+    ST_Assert(
+        (type == c_dtypeRaw) && (DataTableInstanceValueType(membervalues, membername) == c_dataTypeFixed),
+        "STGetFixed(): type mismatch"
+    );
+    return DataTableInstanceGetFixed(membervalues, membername);
+}
+fixed STGetFixed(ST_Ref ref) { return g_dispatchTableSTGetFixed[TypeOfRef(ref)](ref); }
+
+static string STGetString_MemberRefs(ST_Ref ref) {
+    int parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int type = GetMemberType(GetMemberTypesTable(parent), membername);
+    int membervalues = GetMemberValuesTable(parent);
+    ST_Assert(type != c_dtypeNonexistent, "STGetString(): invalid reference");
+    ST_Assert(
+        (type == c_dtypeRaw) && (DataTableInstanceValueType(membervalues, membername) == c_dataTypeString),
+        "STGetString(): type mismatch"
+    );
+    return DataTableInstanceGetString(membervalues, membername);
+}
+string STGetString(ST_Ref ref) { return g_dispatchTableSTGetString[TypeOfRef(ref)](ref); }
+
+static text STGetText_MemberRefs(ST_Ref ref) {
+    int parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int type = GetMemberType(GetMemberTypesTable(parent), membername);
+    int membervalues = GetMemberValuesTable(parent);
+    ST_Assert(type != c_dtypeNonexistent, "STGetText(): invalid reference");
+    ST_Assert(
+        (type == c_dtypeRaw) && (DataTableInstanceValueType(membervalues, membername) == c_dataTypeText),
+        "STGetText(): type mismatch"
+    );
+    return DataTableInstanceGetText(membervalues, membername);
+}
+text STGetText(ST_Ref ref) { return g_dispatchTableSTGetText[TypeOfRef(ref)](ref); }
+
+static trigger STGetTrigger_MemberRefs(ST_Ref ref) {
+    int parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int type = GetMemberType(GetMemberTypesTable(parent), membername);
+    int membervalues = GetMemberValuesTable(parent);
+    ST_Assert(type != c_dtypeNonexistent, "STGetTrigger(): invalid reference");
+    ST_Assert(
+        (type == c_dtypeRaw) && (DataTableInstanceValueType(membervalues, membername) == c_dataTypeTrigger),
+        "STGetTrigger(): type mismatch"
+    );
+    return DataTableInstanceGetTrigger(membervalues, membername);
+}
+trigger STGetTrigger(ST_Ref ref) { return g_dispatchTableSTGetTrigger[TypeOfRef(ref)](ref); }
+
+void STSetArray_MemberRefs(ST_Ref ref, ST_Array value) {
+    int parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    ST_Assert(GetMemberType(membertypes, membername) != c_dtypeNonexistent, "STSetArray(): invalid reference");
+
+    DataTableInstanceSetInt(membertypes, membername, c_dtypeArray);
+    DataTableInstanceSetInt(membervalues, membername, value);
+}
+void STSetArray_ArrayBackInserterRef(ST_Ref ref, ST_Array value) {
+    ST_Array parent = GetParent(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    int count = GetMemberCount(parent);
+    string key = IntToString(count);
+    
+    DataTableInstanceSetInt(membertypes, key, c_dtypeArray);
+    DataTableInstanceSetInt(membervalues, key, value);
+    SetMemberCount(parent, count + 1);
+}
+void STSetArray_ObjectInserterRef(ST_Ref ref, ST_Array value) {
+    ST_Object parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    ST_Assert(GetMemberType(membertypes, membername) == c_dtypeNonexistent, "STSetArray(): invalid reference");
+
+    DataTableInstanceSetInt(membertypes, membername, c_dtypeArray);
+    DataTableInstanceSetInt(membervalues, membername, value);
+    SetMemberCount(parent, GetMemberCount(parent) + 1);
+}
+void STSetArray(ST_Ref ref, ST_Array value) { g_dispatchTableSTSetArray[TypeOfRef(ref)](ref, value); }
+
+void STSetObject_MemberRefs(ST_Ref ref, ST_Object value) {
+    int parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    ST_Assert(GetMemberType(membertypes, membername) != c_dtypeNonexistent, "STSetObject(): invalid reference");
+
+    DataTableInstanceSetInt(membertypes, membername, c_dtypeObject);
+    DataTableInstanceSetInt(membervalues, membername, value);
+}
+void STSetObject_ArrayBackInserterRef(ST_Ref ref, ST_Object value) {
+    ST_Array parent = GetParent(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    int count = GetMemberCount(parent);
+    string key = IntToString(count);
+    
+    DataTableInstanceSetInt(membertypes, key, c_dtypeObject);
+    DataTableInstanceSetInt(membervalues, key, value);
+    SetMemberCount(parent, count + 1);
+}
+void STSetObject_ObjectInserterRef(ST_Ref ref, ST_Object value) {
+    ST_Object parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    ST_Assert(GetMemberType(membertypes, membername) == c_dtypeNonexistent, "STSetObject(): invalid reference");
+
+    DataTableInstanceSetInt(membertypes, membername, c_dtypeObject);
+    DataTableInstanceSetInt(membervalues, membername, value);
+    SetMemberCount(parent, GetMemberCount(parent) + 1);
+}
+void STSetObject(ST_Ref ref, ST_Object value) { g_dispatchTableSTSetObject[TypeOfRef(ref)](ref, value); }
+
+void STSetBool_MemberRefs(ST_Ref ref, bool value) {
+    int parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    ST_Assert(GetMemberType(membertypes, membername) != c_dtypeNonexistent, "STSetBool(): invalid reference");
+
+    DataTableInstanceSetInt(membertypes, membername, c_dtypeRaw);
+    DataTableInstanceSetBool(membervalues, membername, value);
+}
+void STSetBool_ArrayBackInserterRef(ST_Ref ref, bool value) {
+    ST_Array parent = GetParent(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    int count = GetMemberCount(parent);
+    string key = IntToString(count);
+    
+    DataTableInstanceSetInt(membertypes, key, c_dtypeRaw);
+    DataTableInstanceSetBool(membervalues, key, value);
+    SetMemberCount(parent, count + 1);
+}
+void STSetBool_ObjectInserterRef(ST_Ref ref, bool value) {
+    ST_Object parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    ST_Assert(GetMemberType(membertypes, membername) == c_dtypeNonexistent, "STSetBool(): invalid reference");
+
+    DataTableInstanceSetInt(membertypes, membername, c_dtypeRaw);
+    DataTableInstanceSetBool(membervalues, membername, value);
+    SetMemberCount(parent, GetMemberCount(parent) + 1);
+}
+void STSetBool(ST_Ref ref, bool value) { g_dispatchTableSTSetBool[TypeOfRef(ref)](ref, value); }
+
+void STSetInt_MemberRefs(ST_Ref ref, int value) {
+    int parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    ST_Assert(GetMemberType(membertypes, membername) != c_dtypeNonexistent, "STSetInt(): invalid reference");
+
+    DataTableInstanceSetInt(membertypes, membername, c_dtypeRaw);
+    DataTableInstanceSetInt(membervalues, membername, value);
+}
+void STSetInt_ArrayBackInserterRef(ST_Ref ref, int value) {
+    ST_Array parent = GetParent(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    int count = GetMemberCount(parent);
+    string key = IntToString(count);
+    
+    DataTableInstanceSetInt(membertypes, key, c_dtypeRaw);
+    DataTableInstanceSetInt(membervalues, key, value);
+    SetMemberCount(parent, count + 1);
+}
+void STSetInt_ObjectInserterRef(ST_Ref ref, int value) {
+    ST_Object parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    ST_Assert(GetMemberType(membertypes, membername) == c_dtypeNonexistent, "STSetInt(): invalid reference");
+
+    DataTableInstanceSetInt(membertypes, membername, c_dtypeRaw);
+    DataTableInstanceSetInt(membervalues, membername, value);
+    SetMemberCount(parent, GetMemberCount(parent) + 1);
+}
+void STSetInt(ST_Ref ref, int value) { g_dispatchTableSTSetInt[TypeOfRef(ref)](ref, value); }
+
+void STSetFixed_MemberRefs(ST_Ref ref, fixed value) {
+    int parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    ST_Assert(GetMemberType(membertypes, membername) != c_dtypeNonexistent, "STSetFixed(): invalid reference");
+
+    DataTableInstanceSetInt(membertypes, membername, c_dtypeRaw);
+    DataTableInstanceSetFixed(membervalues, membername, value);
+}
+void STSetFixed_ArrayBackInserterRef(ST_Ref ref, fixed value) {
+    ST_Array parent = GetParent(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    int count = GetMemberCount(parent);
+    string key = IntToString(count);
+    
+    DataTableInstanceSetInt(membertypes, key, c_dtypeRaw);
+    DataTableInstanceSetFixed(membervalues, key, value);
+    SetMemberCount(parent, count + 1);
+}
+void STSetFixed_ObjectInserterRef(ST_Ref ref, fixed value) {
+    ST_Object parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    ST_Assert(GetMemberType(membertypes, membername) == c_dtypeNonexistent, "STSetFixed(): invalid reference");
+
+    DataTableInstanceSetInt(membertypes, membername, c_dtypeRaw);
+    DataTableInstanceSetFixed(membervalues, membername, value);
+    SetMemberCount(parent, GetMemberCount(parent) + 1);
+}
+void STSetFixed(ST_Ref ref, fixed value) { g_dispatchTableSTSetFixed[TypeOfRef(ref)](ref, value); }
+
+void STSetString_MemberRefs(ST_Ref ref, string value) {
+    int parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    ST_Assert(GetMemberType(membertypes, membername) != c_dtypeNonexistent, "STSetString(): invalid reference");
+
+    DataTableInstanceSetInt(membertypes, membername, c_dtypeRaw);
+    DataTableInstanceSetString(membervalues, membername, value);
+}
+void STSetString_ArrayBackInserterRef(ST_Ref ref, string value) {
+    ST_Array parent = GetParent(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    int count = GetMemberCount(parent);
+    string key = IntToString(count);
+    
+    DataTableInstanceSetInt(membertypes, key, c_dtypeRaw);
+    DataTableInstanceSetString(membervalues, key, value);
+    SetMemberCount(parent, count + 1);
+}
+void STSetString_ObjectInserterRef(ST_Ref ref, string value) {
+    ST_Object parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    ST_Assert(GetMemberType(membertypes, membername) == c_dtypeNonexistent, "STSetString(): invalid reference");
+
+    DataTableInstanceSetInt(membertypes, membername, c_dtypeRaw);
+    DataTableInstanceSetString(membervalues, membername, value);
+    SetMemberCount(parent, GetMemberCount(parent) + 1);
+}
+void STSetString(ST_Ref ref, string value) { g_dispatchTableSTSetString[TypeOfRef(ref)](ref, value); }
+
+void STSetText_MemberRefs(ST_Ref ref, text value) {
+    int parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    ST_Assert(GetMemberType(membertypes, membername) != c_dtypeNonexistent, "STSetText(): invalid reference");
+
+    DataTableInstanceSetInt(membertypes, membername, c_dtypeRaw);
+    DataTableInstanceSetText(membervalues, membername, value);
+}
+void STSetText_ArrayBackInserterRef(ST_Ref ref, text value) {
+    ST_Array parent = GetParent(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    int count = GetMemberCount(parent);
+    string key = IntToString(count);
+    
+    DataTableInstanceSetInt(membertypes, key, c_dtypeRaw);
+    DataTableInstanceSetText(membervalues, key, value);
+    SetMemberCount(parent, count + 1);
+}
+void STSetText_ObjectInserterRef(ST_Ref ref, text value) {
+    ST_Object parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    ST_Assert(GetMemberType(membertypes, membername) == c_dtypeNonexistent, "STSetText(): invalid reference");
+
+    DataTableInstanceSetInt(membertypes, membername, c_dtypeRaw);
+    DataTableInstanceSetText(membervalues, membername, value);
+    SetMemberCount(parent, GetMemberCount(parent) + 1);
+}
+void STSetText(ST_Ref ref, text value) { g_dispatchTableSTSetText[TypeOfRef(ref)](ref, value); }
+
+void STSetTrigger_MemberRefs(ST_Ref ref, trigger value) {
+    int parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    ST_Assert(GetMemberType(membertypes, membername) != c_dtypeNonexistent, "STSetTrigger(): invalid reference");
+
+    DataTableInstanceSetInt(membertypes, membername, c_dtypeRaw);
+    DataTableInstanceSetTrigger(membervalues, membername, value);
+}
+void STSetTrigger_ArrayBackInserterRef(ST_Ref ref, trigger value) {
+    ST_Array parent = GetParent(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    int count = GetMemberCount(parent);
+    string key = IntToString(count);
+    
+    DataTableInstanceSetInt(membertypes, key, c_dtypeRaw);
+    DataTableInstanceSetTrigger(membervalues, key, value);
+    SetMemberCount(parent, count + 1);
+}
+void STSetTrigger_ObjectInserterRef(ST_Ref ref, trigger value) {
+    ST_Object parent = GetParent(ref);
+    string membername = GetMemberString(ref);
+    int membertypes = GetMemberTypesTable(parent);
+    int membervalues = GetMemberValuesTable(parent);
+    ST_Assert(GetMemberType(membertypes, membername) == c_dtypeNonexistent, "STSetTrigger(): invalid reference");
+
+    DataTableInstanceSetInt(membertypes, membername, c_dtypeRaw);
+    DataTableInstanceSetTrigger(membervalues, membername, value);
+    SetMemberCount(parent, GetMemberCount(parent) + 1);
+}
+void STSetTrigger(ST_Ref ref, trigger value) { g_dispatchTableSTSetTrigger[TypeOfRef(ref)](ref, value); }
+
+static void SetupDispatchTable() {
+    g_dispatchTableSTR_AO[c_dtypeArray] = STR_AO_Array;
+    g_dispatchTableSTR_AO[c_dtypeObject] = STR_AO_Object;
+
+    g_dispatchTableSTR_Exists[c_dtypeArrayMemberRef] = STR_Exists_ArrayMemberRef;
+    g_dispatchTableSTR_Exists[c_dtypeArrayBackInserterRef] = STR_Exists_ArrayBackInserterRef;
+    g_dispatchTableSTR_Exists[c_dtypeObjectMemberRef] = STR_Exists_ObjectMemberRef;
+    g_dispatchTableSTR_Exists[c_dtypeObjectInserterRef] = STR_Exists_ObjectInserterRef;
+    g_dispatchTableSTR_Exists[c_dtypeDirectArrayRef] = STR_Exists_DirectArrayRef;
+    g_dispatchTableSTR_Exists[c_dtypeDirectObjectRef] = STR_Exists_DirectObjectRef;
+
+    g_dispatchTableSTR_DeleteFromParent[c_dtypeArrayMemberRef] = STR_DeleteFromParent_ArrayMemberRef;
+    g_dispatchTableSTR_DeleteFromParent[c_dtypeObjectMemberRef] = STR_DeleteFromParent_ObjectMemberRef;
+    
+    g_dispatchTableSTR_IndexFromParentArray[c_dtypeArrayMemberRef] = STR_IndexFromParentArray_ArrayMemberRef;
+    
+    g_dispatchTableSTR_MemberNameFromParentObject[c_dtypeObjectMemberRef] = STR_MemberNameFromParentObject_ObjectMemberRef;
+    g_dispatchTableSTR_MemberNameFromParentObject[c_dtypeObjectInserterRef] = STR_MemberNameFromParentObject_ObjectInserterRef;
+
+    g_dispatchTableSTR_GetValueType[c_dtypeArrayMemberRef] = STR_GetValueType_MemberRefs;
+    g_dispatchTableSTR_GetValueType[c_dtypeObjectMemberRef] = STR_GetValueType_MemberRefs;
+    g_dispatchTableSTR_GetValueType[c_dtypeDirectArrayRef] = STR_GetValueType_DirectArrayRef;
+    g_dispatchTableSTR_GetValueType[c_dtypeDirectObjectRef] = STR_GetValueType_DirectObjectRef;
+
+    g_dispatchTableSTR_GetRawValueType[c_dtypeArrayMemberRef] = STR_GetRawValueType_MemberRefs;
+    g_dispatchTableSTR_GetRawValueType[c_dtypeObjectMemberRef] = STR_GetRawValueType_MemberRefs;
+    g_dispatchTableSTR_GetRawValueType[c_dtypeDirectArrayRef] = STR_GetRawValueType_DirectArrayRef;
+    g_dispatchTableSTR_GetRawValueType[c_dtypeDirectObjectRef] = STR_GetRawValueType_DirectObjectRef;
+
+    g_dispatchTableSTGetArray[c_dtypeArrayMemberRef] = STGetArray_MemberRefs;
+    g_dispatchTableSTGetArray[c_dtypeObjectMemberRef] = STGetArray_MemberRefs;
+    g_dispatchTableSTGetArray[c_dtypeDirectArrayRef] = STGetArray_DirectArrayRef;
+
+    g_dispatchTableSTGetObject[c_dtypeArrayMemberRef] = STGetObject_MemberRefs;
+    g_dispatchTableSTGetObject[c_dtypeObjectMemberRef] = STGetObject_MemberRefs;
+    g_dispatchTableSTGetObject[c_dtypeDirectObjectRef] = STGetObject_DirectObjectRef;
+ 
+    g_dispatchTableSTGetBool[c_dtypeArrayMemberRef] = STGetBool_MemberRefs;
+    g_dispatchTableSTGetBool[c_dtypeObjectMemberRef] = STGetBool_MemberRefs;
+
+    g_dispatchTableSTGetInt[c_dtypeArrayMemberRef] = STGetInt_MemberRefs;
+    g_dispatchTableSTGetInt[c_dtypeObjectMemberRef] = STGetInt_MemberRefs;
+
+    g_dispatchTableSTGetFixed[c_dtypeArrayMemberRef] = STGetFixed_MemberRefs;
+    g_dispatchTableSTGetFixed[c_dtypeObjectMemberRef] = STGetFixed_MemberRefs;
+
+    g_dispatchTableSTGetString[c_dtypeArrayMemberRef] = STGetString_MemberRefs;
+    g_dispatchTableSTGetString[c_dtypeObjectMemberRef] = STGetString_MemberRefs;
+
+    g_dispatchTableSTGetText[c_dtypeArrayMemberRef] = STGetText_MemberRefs;
+    g_dispatchTableSTGetText[c_dtypeObjectMemberRef] = STGetText_MemberRefs;
+
+    g_dispatchTableSTGetTrigger[c_dtypeArrayMemberRef] = STGetTrigger_MemberRefs;
+    g_dispatchTableSTGetTrigger[c_dtypeObjectMemberRef] = STGetTrigger_MemberRefs;
+
+    g_dispatchTableSTSetArray[c_dtypeArrayMemberRef] = STSetArray_MemberRefs;
+    g_dispatchTableSTSetArray[c_dtypeObjectMemberRef] = STSetArray_MemberRefs;
+    g_dispatchTableSTSetArray[c_dtypeArrayBackInserterRef] = STSetArray_ArrayBackInserterRef;
+    g_dispatchTableSTSetArray[c_dtypeObjectInserterRef] = STSetArray_ObjectInserterRef;
+
+    g_dispatchTableSTSetObject[c_dtypeArrayMemberRef] = STSetObject_MemberRefs;
+    g_dispatchTableSTSetObject[c_dtypeObjectMemberRef] = STSetObject_MemberRefs;
+    g_dispatchTableSTSetObject[c_dtypeArrayBackInserterRef] = STSetObject_ArrayBackInserterRef;
+    g_dispatchTableSTSetObject[c_dtypeObjectInserterRef] = STSetObject_ObjectInserterRef;
+
+    g_dispatchTableSTSetBool[c_dtypeArrayMemberRef] = STSetBool_MemberRefs;
+    g_dispatchTableSTSetBool[c_dtypeObjectMemberRef] = STSetBool_MemberRefs;
+    g_dispatchTableSTSetBool[c_dtypeArrayBackInserterRef] = STSetBool_ArrayBackInserterRef;
+    g_dispatchTableSTSetBool[c_dtypeObjectInserterRef] = STSetBool_ObjectInserterRef;
+
+    g_dispatchTableSTSetInt[c_dtypeArrayMemberRef] = STSetInt_MemberRefs;
+    g_dispatchTableSTSetInt[c_dtypeObjectMemberRef] = STSetInt_MemberRefs;
+    g_dispatchTableSTSetInt[c_dtypeArrayBackInserterRef] = STSetInt_ArrayBackInserterRef;
+    g_dispatchTableSTSetInt[c_dtypeObjectInserterRef] = STSetInt_ObjectInserterRef;
+
+    g_dispatchTableSTSetFixed[c_dtypeArrayMemberRef] = STSetFixed_MemberRefs;
+    g_dispatchTableSTSetFixed[c_dtypeObjectMemberRef] = STSetFixed_MemberRefs;
+    g_dispatchTableSTSetFixed[c_dtypeArrayBackInserterRef] = STSetFixed_ArrayBackInserterRef;
+    g_dispatchTableSTSetFixed[c_dtypeObjectInserterRef] = STSetFixed_ObjectInserterRef;
+
+    g_dispatchTableSTSetString[c_dtypeArrayMemberRef] = STSetString_MemberRefs;
+    g_dispatchTableSTSetString[c_dtypeObjectMemberRef] = STSetString_MemberRefs;
+    g_dispatchTableSTSetString[c_dtypeArrayBackInserterRef] = STSetString_ArrayBackInserterRef;
+    g_dispatchTableSTSetString[c_dtypeObjectInserterRef] = STSetString_ObjectInserterRef;
+
+    g_dispatchTableSTSetText[c_dtypeArrayMemberRef] = STSetText_MemberRefs;
+    g_dispatchTableSTSetText[c_dtypeObjectMemberRef] = STSetText_MemberRefs;
+    g_dispatchTableSTSetText[c_dtypeArrayBackInserterRef] = STSetText_ArrayBackInserterRef;
+    g_dispatchTableSTSetText[c_dtypeObjectInserterRef] = STSetText_ObjectInserterRef;
+
+    g_dispatchTableSTSetTrigger[c_dtypeArrayMemberRef] = STSetTrigger_MemberRefs;
+    g_dispatchTableSTSetTrigger[c_dtypeObjectMemberRef] = STSetTrigger_MemberRefs;
+    g_dispatchTableSTSetTrigger[c_dtypeArrayBackInserterRef] = STSetTrigger_ArrayBackInserterRef;
+    g_dispatchTableSTSetTrigger[c_dtypeObjectInserterRef] = STSetTrigger_ObjectInserterRef;
+}

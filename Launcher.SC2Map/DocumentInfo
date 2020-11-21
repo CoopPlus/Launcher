@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<DocInfo>
+    <ModType>
+        <Value>Interface</Value>
+    </ModType>
+    <Icon>
+        <Value>EditorData\Images\UI_Arcade_IconTMarine.tga</Value>
+    </Icon>
+    <Dependencies>
+        <Value>bnet:Liberty (Mod)/0.0/999,file:Mods/Liberty.SC2Mod</Value>
+    </Dependencies>
+    <Preload>
+        <Value>AssetFile;Cutscenes\UI_Screens_AlliedCommander_Foreground.SC2Cutscene</Value>
+        <Value>AssetFile;Cutscenes\UI_Screens_AlliedCommander_Foreground_Mirrored.SC2Cutscene</Value>
+        <Value>AssetFile;Assets\Units\Test\Sphere\Sphere.m3</Value>
+    </Preload>
+</DocInfo>

@@ -1,0 +1,251 @@
+include "TriggerLibs/NativeLib"
+include "scripts/st_utility"
+
+//////////// Exports
+
+string STS_SerializeArray(ST_Array value);
+string STS_SerializeObject(ST_Object value);
+string STS_SerializeBool(bool value);
+string STS_SerializeInt(int value);
+string STS_SerializeFixed(fixed value);
+string STS_SerializeString(string value);
+
+string STS_SerializeRefValue(ST_Ref ref);
+
+ST_Array STS_DeserializeArray(string serialized);
+ST_Object STS_DeserializeObject(string serialized);
+bool STS_DeserializeBool(string serialized);
+int STS_DeserializeInt(string serialized);
+fixed STS_DeserializeFixed(string serialized);
+string STS_DeserializeString(string serialized);
+
+void STS_DeserializeValueIntoRef(string serialized, ST_Ref ref);
+
+string STS_SimpleEncrypt(string value);
+string STS_SimpleDecrypt(string value);
+
+////////////
+
+static string c_typeTagArray = "A";
+static string c_typeTagObject = "O";
+static string c_typeTagBool = "B";
+static string c_typeTagInt = "I";
+static string c_typeTagFixed = "F";
+static string c_typeTagString = "S";
+static string c_lengthSep = ";";
+
+static string FormTag(string typetag, string data) {
+    return typetag + IntToString(StringLength(data)) + c_lengthSep + data;
+}
+
+string STS_SerializeArray(ST_Array value) {
+    int count = ST_Array_Count(value);
+    int i;
+
+    string data = STS_SerializeInt(count);
+    for (i = 0; i < count; i += 1) {
+        data += STS_SerializeRefValue(ST_Array_ByIndex(value, i));
+    }
+    return FormTag(c_typeTagArray, data);
+}
+
+string STS_SerializeObject(ST_Object value) {
+    int count = ST_Object_Count(value);
+    int i;
+    ST_Ref ref;
+
+    string data = STS_SerializeInt(count);
+    for (i = 0; i < count; i += 1) {
+        ref = ST_Object_ByIndex(value, i);
+        data += STS_SerializeString(STR_MemberNameFromParentObject(ref));
+        data += STS_SerializeRefValue(ref);
+    }
+    return FormTag(c_typeTagObject, data);
+}
+
+string STS_SerializeBool(bool value) {
+    if (value) { return FormTag(c_typeTagBool, "1"); }
+    else { return FormTag(c_typeTagBool, "0"); }
+}
+
+string STS_SerializeInt(int value) {
+    return FormTag(c_typeTagInt, IntToString(value));
+}
+
+string STS_SerializeFixed(fixed value) {
+    // fixed is equivalent to int32 divided by 4096
+    string signtag = "+";
+    int integer;
+    if (value < 0) {
+        signtag = "-";
+        value = -value;
+    }
+    integer = FixedToInt(value);
+    return FormTag(c_typeTagFixed, IntToString(integer * 4096 + FixedToInt((value - integer) * 4096)));
+}
+
+string STS_SerializeString(string value) {
+    return FormTag(c_typeTagString, value);
+}
+
+string STS_SerializeRefValue(ST_Ref ref) {
+    int type = STR_GetValueType(ref);
+    int rawType = STR_GetRawValueType(ref);
+
+    if (type == c_dtypeArray) { return STS_SerializeArray(STGetArray(ref)); }
+    else if (type == c_dtypeObject) { return STS_SerializeObject(STGetObject(ref)); }
+    else if (rawType == c_dataTypeBool) { return STS_SerializeBool(STGetBool(ref)); }
+    else if (rawType == c_dataTypeInt) { return STS_SerializeInt(STGetInt(ref)); }
+    else if (rawType == c_dataTypeFixed) { return STS_SerializeFixed(STGetFixed(ref)); }
+    else if (rawType == c_dataTypeString) { return STS_SerializeString(STGetString(ref)); }
+    else if (rawType == c_dataTypeText) {
+        ST_Assert(false, "STS_SerializeRefValue(): type text is unsupported for serialization");
+    }
+    else if (rawType == c_dataTypeTrigger) {
+        ST_Assert(false, "STS_SerializeRefValue(): type trigger is unsupported for serialization");
+    }
+    return "";
+}
+
+struct STS_Stream {
+    string stream;
+};
+
+struct STS_GetNextOut {
+    string tag;
+    string data;
+};
+
+static void GetNext(structref<STS_Stream> stream, structref<STS_GetNextOut> out) {
+    int sepIndex = ST_StringFind(stream.stream, c_lengthSep);
+    int dataLength = StringToInt(ST_StringSub(stream.stream, 1, sepIndex));
+
+    out.tag = ST_StringSub(stream.stream, 0, 1);
+    out.data = ST_StringSub(stream.stream, sepIndex + 1, sepIndex + 1 + dataLength);
+
+    stream.stream = ST_StringSub(stream.stream, sepIndex + 1 + dataLength, StringLength(stream.stream));
+}
+
+static ST_Array DeserializeArray(structref<STS_Stream> stream);
+static ST_Object DeserializeObject(structref<STS_Stream> stream);
+static bool DeserializeBool(structref<STS_Stream> stream);
+static int DeserializeInt(structref<STS_Stream> stream);
+static fixed DeserializeFixed(structref<STS_Stream> stream);
+static string DeserializeString(structref<STS_Stream> stream);
+static void DeserializeValueIntoRef(structref<STS_Stream> stream, ST_Ref ref);
+
+static ST_Array DeserializeArray(structref<STS_Stream> stream) {
+    STS_Stream substream;
+    STS_GetNextOut out;
+    ST_Array ret;
+    int count;
+    int i;
+    ST_Ref backInserter;
+    
+    GetNext(stream, out);
+    ST_Assert(out.tag == c_typeTagArray, "DeserializeArray(): unexpected tag");
+
+    substream.stream = out.data;
+    count = DeserializeInt(substream);
+
+    ret = ST_Array_Create();
+    backInserter = ST_Array_BackInserter(ret);
+    for (i = 0; i < count; i += 1) {
+        DeserializeValueIntoRef(substream, backInserter);
+    }
+    return ret;
+}
+
+static ST_Object DeserializeObject(structref<STS_Stream> stream) {
+    STS_Stream substream;
+    STS_GetNextOut out;
+    ST_Object ret;
+    int count;
+    int i;
+    string key;
+
+    GetNext(stream, out);
+    ST_Assert(out.tag == c_typeTagObject, "DeserializeObject(): unexpected tag");
+
+    substream.stream = out.data;
+    count = DeserializeInt(substream);
+
+    ret = ST_Object_Create();
+    for (i = 0; i < count; i += 1) {
+        key = DeserializeString(substream);
+        DeserializeValueIntoRef(substream, ST_Object_Query(ret, key));
+    }
+    return ret;
+}
+
+static bool DeserializeBool(structref<STS_Stream> stream) {
+    STS_GetNextOut out;
+
+    GetNext(stream, out);
+    ST_Assert(out.tag == c_typeTagBool, "DeserializeBool(): unexpected tag");
+
+    return out.data != "0";
+}
+
+static int DeserializeInt(structref<STS_Stream> stream) {
+    STS_GetNextOut out;
+
+    GetNext(stream, out);
+    ST_Assert(out.tag == c_typeTagInt, "DeserializeInt(): unexpected tag");
+
+    return StringToInt(out.data);
+}
+
+static fixed DeserializeFixed(structref<STS_Stream> stream) {
+    STS_GetNextOut out;
+    fixed sign = 1.0;
+    int value;
+    
+    GetNext(stream, out);
+    ST_Assert(out.tag == c_typeTagFixed, "DeserializeFixed(): unexpected tag");
+
+    if (ST_StringSub(out.data, 0, 1) == "-") {
+        sign = -1.0;
+    }
+    value = StringToInt(ST_StringSub(out.data, 1, StringLength(out.data)));
+
+    return sign * (IntToFixed(value / 4096) + IntToFixed(value % 4096) / 4096.0);
+}
+
+static string DeserializeString(structref<STS_Stream> stream) {
+    STS_GetNextOut out;
+
+    GetNext(stream, out);
+    ST_Assert(out.tag == c_typeTagString, "DeserializeString(): unexpected tag");
+
+    return out.data;
+}
+
+static void DeserializeValueIntoRef(structref<STS_Stream> stream, ST_Ref ref) {
+    string tag = ST_StringSub(stream.stream, 0, 1);
+    if (tag == c_typeTagArray) { STSetArray(ref, DeserializeArray(stream)); }
+    else if (tag == c_typeTagObject) { STSetObject(ref, DeserializeObject(stream)); }
+    else if (tag == c_typeTagBool) { STSetBool(ref, DeserializeBool(stream)); }
+    else if (tag == c_typeTagInt) { STSetInt(ref, DeserializeInt(stream)); }
+    else if (tag == c_typeTagFixed) { STSetFixed(ref, DeserializeFixed(stream)); }
+    else if (tag == c_typeTagString) { STSetString(ref, DeserializeString(stream)); }
+    else { ST_Assert(false, "DeserializeValueIntoRef(): unknown type tag"); }
+}
+
+ST_Array STS_DeserializeArray(string serialized) { STS_Stream stream; stream.stream = serialized; return DeserializeArray(stream); }
+ST_Object STS_DeserializeObject(string serialized) { STS_Stream stream; stream.stream = serialized; return DeserializeObject(stream); }
+bool STS_DeserializeBool(string serialized) { STS_Stream stream; stream.stream = serialized; return DeserializeBool(stream); }
+int STS_DeserializeInt(string serialized) { STS_Stream stream; stream.stream = serialized; return DeserializeInt(stream); }
+fixed STS_DeserializeFixed(string serialized) { STS_Stream stream; stream.stream = serialized; return DeserializeFixed(stream); }
+string STS_DeserializeString(string serialized) { STS_Stream stream; stream.stream = serialized; return DeserializeString(stream); }
+void STS_DeserializeValueIntoRef(string serialized, ST_Ref ref) { STS_Stream stream; stream.stream = serialized; DeserializeValueIntoRef(stream, ref); }
+
+string STS_SimpleEncrypt(string value) {
+    // TODO
+    return value;
+}
+
+string STS_SimpleDecrypt(string value) {
+    // TODO
+    return value;
+}

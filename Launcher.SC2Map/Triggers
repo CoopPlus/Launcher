@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TriggerData>
+    <Root>
+        <Item Type="CustomScript" Id="BAD269A3"/>
+        <Item Type="Trigger" Id="CD9628E7"/>
+    </Root>
+    <Element Type="CustomScript" Id="BAD269A3">
+        <Identifier>main</Identifier>
+        <ScriptCode>
+            include &quot;scripts/cp_launcher&quot;
+        </ScriptCode>
+        <InitFunc>CPL_Main</InitFunc>
+    </Element>
+    <Element Type="Trigger" Id="CD9628E7">
+        <Identifier>test</Identifier>
+        <InitOff/>
+        <Variable Type="Variable" Id="C7644B3F"/>
+        <Event Type="FunctionCall" Id="B6702CB3"/>
+    </Element>
+    <Element Type="Variable" Id="C7644B3F">
+        <VariableType>
+            <Type Value="control"/>
+        </VariableType>
+        <Value Type="Param" Id="D83D9C1A"/>
+    </Element>
+    <Element Type="Param" Id="D83D9C1A">
+        <FunctionCall Type="FunctionCall" Id="A9D6CF96"/>
+    </Element>
+    <Element Type="FunctionCall" Id="A9D6CF96">
+        <FunctionDef Type="FunctionDef" Library="Ntve" Id="305EC1D4"/>
+    </Element>
+    <Element Type="FunctionCall" Id="B6702CB3">
+        <FunctionDef Type="FunctionDef" Library="Ntve" Id="B5222B7D"/>
+        <Parameter Type="Param" Id="FAF4DEF3"/>
+        <Parameter Type="Param" Id="A993238E"/>
+        <Parameter Type="Param" Id="93956268"/>
+    </Element>
+    <Element Type="Param" Id="FAF4DEF3">
+        <ParameterDef Type="ParamDef" Library="Ntve" Id="47F2C8FB"/>
+        <Preset Type="PresetValue" Library="Ntve" Id="2999701E"/>
+    </Element>
+    <Element Type="Param" Id="A993238E">
+        <ParameterDef Type="ParamDef" Library="Ntve" Id="01D07B8F"/>
+        <Preset Type="PresetValue" Library="Ntve" Id="F13E3BA1"/>
+    </Element>
+    <Element Type="Param" Id="93956268">
+        <ParameterDef Type="ParamDef" Library="Ntve" Id="B371ABF2"/>
+        <Preset Type="PresetValue" Library="Ntve" Id="9D6C743C"/>
+    </Element>
+</TriggerData>
