@@ -1,0 +1,1 @@
+"D:\Programs\x86\StarCraft II\Support64\SC2Switcher_x64.exe" -run "%~dp0Launcher.SC2Map" -trigdebug -displaymode 0
