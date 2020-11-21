@@ -330,6 +330,8 @@ CoopPlus/Launcher/UnknownEnemyComposition=Unknown
 CoopPlus/Launcher/GameSetupResultMutatorsTitle=Mutators
 CoopPlus/Launcher/GameSetupResultEnemyCompositionTitle=Enemies
 
+CoopPlus/Launcher/CustomizeButton=Cust<n/>omize
+
 CoopPlus/Launcher/IntentionMenuDefault=Default
 CoopPlus/Launcher/IntentionMenuCopy=I want this option as well
 CoopPlus/Launcher/IntentionMenuMapRevealNoVeto=Random, but reveal which misson to play

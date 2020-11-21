@@ -330,6 +330,8 @@ CoopPlus/Launcher/UnknownEnemyComposition=알 수 없음
 CoopPlus/Launcher/GameSetupResultMutatorsTitle=돌연변이
 CoopPlus/Launcher/GameSetupResultEnemyCompositionTitle=적
 
+CoopPlus/Launcher/CustomizeButton=Cust<n/>omize
+
 CoopPlus/Launcher/IntentionMenuDefault=기본값
 CoopPlus/Launcher/IntentionMenuCopy=아군의 선택지를 따라갑니다
 CoopPlus/Launcher/IntentionMenuMapRevealNoVeto=무작위 임무 (미리 확인)
